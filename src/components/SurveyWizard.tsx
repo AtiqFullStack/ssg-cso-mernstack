@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   CheckCircle2,
   AlertCircle,
@@ -14,7 +14,8 @@ import {
   Phone,
   User
 } from 'lucide-react';
-import { CSOProfile, Language, SurveyQuestion, Assessment, StaffEntry } from '../types/survey';
+import { CSOProfile, Language, SurveyQuestion, Assessment, StaffEntry, ManpowerEntry } from '../types/survey';
+import { fetchManpowerByCentre } from '../api/client';
 
 interface SurveyWizardProps {
   csoProfile: CSOProfile;
@@ -56,6 +57,15 @@ export const SurveyWizard: React.FC<SurveyWizardProps> = ({
   const [showSuccessScreen, setShowSuccessScreen] = useState(false);
   const [validationError, setValidationError] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [manpowerRoster, setManpowerRoster] = useState<ManpowerEntry[]>([]);
+
+  useEffect(() => {
+    const code = (csoProfile.centreCode || '').trim();
+    if (!code) return;
+    fetchManpowerByCentre(code)
+      .then(setManpowerRoster)
+      .catch(() => setManpowerRoster([]));
+  }, [csoProfile.centreCode]);
 
   // Categories list
   const categories = Array.from(new Set(activeQuestions.map((q) => q.categoryEn))).filter(Boolean);
@@ -77,14 +87,43 @@ export const SurveyWizard: React.FC<SurveyWizardProps> = ({
   // Staff helpers
   const getStaffEntries = (qId: string): StaffEntry[] => staffResponses[qId] || [];
 
-  const handleStaffCountChange = (qId: string, count: number) => {
+  // Get manpower suggestions for a question based on designation keyword match
+  const getManpowerSuggestions = (q: SurveyQuestion): ManpowerEntry[] => {
+    if (manpowerRoster.length === 0) return [];
+    const keyword = (q.textHi || q.textEn || '').toLowerCase();
+    // Try to match by designation or serviceName keywords in question text
+    const matched = manpowerRoster.filter((m) => {
+      const desig = (m.designation || '').toLowerCase();
+      const svc = (m.serviceName || '').toLowerCase();
+      return keyword.includes(desig) || keyword.includes(svc) || desig.includes(keyword.split(' ')[0]) || svc.includes(keyword.split(' ')[0]);
+    });
+    // If no keyword match, return all manpower as suggestions
+    return matched.length > 0 ? matched : manpowerRoster;
+  };
+
+  // Toggle a manpower suggestion as present/absent
+  const handleToggleManpowerEntry = (qId: string, mp: ManpowerEntry, checked: boolean) => {
     if (!onStaffResponseChange) return;
     const current = getStaffEntries(qId);
-    const newCount = Math.max(0, Math.min(count, 50));
-    const updated: StaffEntry[] = Array.from({ length: newCount }, (_, i) => ({
-      name: current[i]?.name || '',
-      mobile: current[i]?.mobile || ''
-    }));
+    if (checked) {
+      // Add if not already present (match by contactPhone)
+      const alreadyIn = current.some((s) => s.mobile === mp.contactPhone && s.name === mp.contactName);
+      if (!alreadyIn) {
+        onStaffResponseChange(qId, [...current, { name: mp.contactName, mobile: mp.contactPhone }]);
+      }
+    } else {
+      onStaffResponseChange(qId, current.filter((s) => !(s.mobile === mp.contactPhone && s.name === mp.contactName)));
+    }
+  };
+
+  const handleAddNewStaff = (qId: string) => {
+    if (!onStaffResponseChange) return;
+    onStaffResponseChange(qId, [...getStaffEntries(qId), { name: '', mobile: '' }]);
+  };
+
+  const handleRemoveStaff = (qId: string, index: number) => {
+    if (!onStaffResponseChange) return;
+    const updated = getStaffEntries(qId).filter((_, i) => i !== index);
     onStaffResponseChange(qId, updated);
   };
 
@@ -438,65 +477,138 @@ export const SurveyWizard: React.FC<SurveyWizardProps> = ({
                 )}
               </div>
 
-              {/* STAFF_DETAILS: Count input + dynamic staff rows */}
-              {q.optionsType === 'STAFF_DETAILS' && (
-                <div className="mt-4 space-y-3">
-                  {/* Count selector */}
-                  <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-900">
-                    <Users className="w-4 h-4 text-blue-600 shrink-0" />
-                    <span className="text-xs font-bold text-blue-900 dark:text-blue-200 flex-1">
-                      Present Count:
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <button type="button" onClick={() => handleStaffCountChange(q.id, getStaffEntries(q.id).length - 1)}
-                        className="w-8 h-8 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-bold text-lg flex items-center justify-center cursor-pointer hover:bg-slate-100">−</button>
-                      <span className="w-10 text-center font-black text-lg text-blue-700 dark:text-blue-300">
-                        {getStaffEntries(q.id).length}
+              {/* STAFF_DETAILS: Manpower roster pre-fill + Add New */}
+              {q.optionsType === 'STAFF_DETAILS' && (() => {
+                const entries = getStaffEntries(q.id);
+                const suggestions = getManpowerSuggestions(q);
+
+                return (
+                  <div className="mt-4 space-y-3">
+                    {/* Header count badge */}
+                    <div className="flex items-center gap-2 px-1">
+                      <Users className="w-4 h-4 text-blue-600 shrink-0" />
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                        Staff Present:
                       </span>
-                      <button type="button" onClick={() => handleStaffCountChange(q.id, getStaffEntries(q.id).length + 1)}
-                        className="w-8 h-8 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-bold text-lg flex items-center justify-center cursor-pointer hover:bg-slate-100">+</button>
+                      <span className="px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs font-black font-mono">
+                        {entries.length}
+                      </span>
                     </div>
+
+                    {/* Manpower roster suggestions (pre-filled from Admin upload) */}
+                    {suggestions.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider px-1">
+                          Roster se select karein (tick = present):
+                        </p>
+                        {suggestions.map((mp, si) => {
+                          const isChecked = entries.some(
+                            (s) => s.mobile === mp.contactPhone && s.name === mp.contactName
+                          );
+                          return (
+                            <button
+                              key={si}
+                              type="button"
+                              onClick={() => handleToggleManpowerEntry(q.id, mp, !isChecked)}
+                              className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 transition-all active:scale-[0.98] cursor-pointer text-left ${
+                                isChecked
+                                  ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-400 dark:border-emerald-600'
+                                  : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                              }`}
+                            >
+                              {/* Checkbox */}
+                              <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors ${
+                                isChecked
+                                  ? 'bg-emerald-500 border-emerald-500'
+                                  : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600'
+                              }`}>
+                                {isChecked && <Check className="w-4 h-4 text-white stroke-[3]" />}
+                              </div>
+
+                              {/* Staff info */}
+                              <div className="flex-1 min-w-0">
+                                <div className="font-bold text-sm text-slate-900 dark:text-white truncate">
+                                  {mp.contactName || '—'}
+                                </div>
+                                <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5 flex-wrap">
+                                  <span className="font-medium">{mp.designation}</span>
+                                  {mp.serviceName && (
+                                    <span className="text-[10px] bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded font-mono">
+                                      {mp.serviceName}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Phone */}
+                              {mp.contactPhone && (
+                                <span className="text-xs font-mono text-slate-500 dark:text-slate-400 shrink-0">
+                                  {mp.contactPhone}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Manually added extra staff (not from roster) */}
+                    {entries
+                      .map((entry, idx) => ({ entry, idx }))
+                      .filter(({ entry }) => !suggestions.some(
+                        (mp) => mp.contactPhone === entry.mobile && mp.contactName === entry.name
+                      ))
+                      .map(({ entry, idx }) => (
+                        <div key={idx} className="p-3.5 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-slate-500 uppercase">New Staff #{idx + 1}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveStaff(q.id, idx)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg cursor-pointer transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-1 gap-2.5">
+                            <div className="relative">
+                              <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                              <input
+                                type="text"
+                                value={entry.name}
+                                onChange={(e) => handleStaffFieldChange(q.id, idx, 'name', e.target.value)}
+                                placeholder="Staff Name (नाम)*"
+                                className="w-full pl-9 pr-3 py-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                              />
+                            </div>
+                            <div className="relative">
+                              <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                              <input
+                                type="tel"
+                                inputMode="numeric"
+                                value={entry.mobile}
+                                onChange={(e) => handleStaffFieldChange(q.id, idx, 'mobile', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                placeholder="Mobile Number (10 digits)"
+                                className="w-full pl-9 pr-3 py-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    }
+
+                    {/* Add New Staff button */}
+                    <button
+                      type="button"
+                      onClick={() => handleAddNewStaff(q.id)}
+                      className="w-full min-h-[48px] flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-400 font-bold text-sm hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer active:scale-[0.98]"
+                    >
+                      <Plus className="w-5 h-5" />
+                      <span>Naya Staff Add Karein</span>
+                    </button>
                   </div>
-
-                  {/* Staff entry rows */}
-                  {getStaffEntries(q.id).map((entry, idx) => (
-                    <div key={idx} className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-                      <div>
-                        <label className="text-[11px] font-bold text-slate-500 uppercase mb-1 flex items-center gap-1">
-                          <User className="w-3 h-3" />
-                          Staff #{idx + 1} Name (नाम) *
-                        </label>
-                        <input
-                          type="text"
-                          value={entry.name}
-                          onChange={(e) => handleStaffFieldChange(q.id, idx, 'name', e.target.value)}
-                          placeholder={`Staff ${idx + 1} Name`}
-                          className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[11px] font-bold text-slate-500 uppercase mb-1 flex items-center gap-1">
-                          <Phone className="w-3 h-3" />
-                          Contact No. (मोबाइल नंबर) *
-                        </label>
-                        <input
-                          type="tel"
-                          value={entry.mobile}
-                          onChange={(e) => handleStaffFieldChange(q.id, idx, 'mobile', e.target.value.replace(/\D/g, '').slice(0, 10))}
-                          placeholder="10-digit Mobile No."
-                          className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
-                        />
-                      </div>
-                    </div>
-                  ))}
-
-                  {getStaffEntries(q.id).length === 0 && (
-                    <p className="text-xs text-slate-400 text-center py-2 italic">
-                      Count badhaiye staff details daalne ke liye ↑
-                    </p>
-                  )}
-                </div>
-              )}
+                );
+              })()}
 
               {/* Optional Question-specific Remark / Note */}
               <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80">
