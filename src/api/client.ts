@@ -7,7 +7,8 @@ import {
   CSOProfile,
   SurveyQuestion,
   Assessment,
-  SurveyRecord
+  SurveyRecord,
+  ManpowerEntry
 } from '../types/survey';
 
 const API_BASE = '/api';
@@ -446,6 +447,62 @@ export async function healthCheck(): Promise<{ status: string; totalCSOs: number
     });
     if (!res.ok) throw new Error('Health check failed');
     
+    return await res.json();
+  } catch (err) {
+    handleError(err);
+  }
+}
+
+// ==================== MANPOWER API ====================
+
+/**
+ * GET manpower entries for a specific centre code
+ */
+export async function fetchManpowerByCentre(centreCode: string): Promise<ManpowerEntry[]> {
+  try {
+    const res = await fetch(`${API_BASE}/manpower/${encodeURIComponent(centreCode)}`, {
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!res.ok) throw new Error(`Failed to fetch manpower: ${res.statusText}`);
+    const data = await res.json();
+    return data.manpower || [];
+  } catch (err) {
+    handleError(err);
+  }
+}
+
+/**
+ * GET all manpower entries
+ */
+export async function fetchAllManpower(): Promise<ManpowerEntry[]> {
+  try {
+    const res = await fetch(`${API_BASE}/manpower`, {
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!res.ok) throw new Error(`Failed to fetch all manpower: ${res.statusText}`);
+    const data = await res.json();
+    return data.manpower || [];
+  } catch (err) {
+    handleError(err);
+  }
+}
+
+/**
+ * POST upload manpower entries (replace or append per centre code)
+ */
+export async function uploadManpower(
+  entries: ManpowerEntry[],
+  mode: 'replace' | 'append'
+): Promise<{ success: boolean; count: number }> {
+  try {
+    const res = await fetch(`${API_BASE}/manpower`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entries, mode })
+    });
+    if (!res.ok) throw new Error(`Failed to upload manpower: ${res.statusText}`);
     return await res.json();
   } catch (err) {
     handleError(err);

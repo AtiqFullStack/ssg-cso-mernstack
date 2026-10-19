@@ -34,6 +34,7 @@ let rosters: Collection;
 let questions: Collection;
 let assessments: Collection;
 let submissions: Collection;
+let manpower: Collection;
 
 // Initialize MongoDB connection with schema validation
 async function initializeMongoDB(): Promise<void> {
@@ -58,11 +59,16 @@ async function initializeMongoDB(): Promise<void> {
     const assessmentCount = await assessments.countDocuments();
     const submissionCount = await submissions.countDocuments();
     
+    // Initialize manpower collection (no schema validation)
+    manpower = db.collection('manpower');
+    const manpowerCount = await manpower.countDocuments();
+
     console.log(`[DB] ✅ Database Ready:`);
     console.log(`    • ${rosterCount} CSOs (Centres)`);
     console.log(`    • ${questionCount} Questions`);
     console.log(`    • ${assessmentCount} Assessments`);
     console.log(`    • ${submissionCount} Submissions`);
+    console.log(`    • ${manpowerCount} Manpower Entries`);
   } catch (err) {
     console.error('[MongoDB] Connection error:', err);
     process.exit(1);
@@ -565,6 +571,80 @@ app.post('/api/reset-all', async (_req: Request, res: Response) => {
     await submissions.deleteMany({});
     
     return res.json({ success: true, message: 'All portal data cleared successfully' });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ================= MANPOWER ROUTES =================
+
+// GET all manpower entries
+app.get('/api/manpower', async (_req: Request, res: Response) => {
+  try {
+    const entries = await manpower.find({}).toArray();
+    const cleaned = entries.map(({ _id, ...rest }) => rest);
+    return res.json({ manpower: cleaned });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET manpower entries by centreCode
+app.get('/api/manpower/:centreCode', async (req: Request, res: Response) => {
+  try {
+    const { centreCode } = req.params;
+    const entries = await manpower.find({ centreCode }).toArray();
+    const cleaned = entries.map(({ _id, ...rest }) => rest);
+    return res.json({ manpower: cleaned });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST upload manpower entries (replace or append)
+app.post('/api/manpower', async (req: Request, res: Response) => {
+  try {
+    const { entries, mode } = req.body;
+    if (!Array.isArray(entries)) {
+      return res.status(400).json({ success: false, error: 'entries must be an array' });
+    }
+
+    if (mode === 'replace') {
+      // Delete all docs for each unique centreCode in entries, then insertMany
+      const centreCodes = [...new Set(entries.map((e: any) => e.centreCode).filter(Boolean))];
+      for (const code of centreCodes) {
+        await manpower.deleteMany({ centreCode: code });
+      }
+      if (entries.length > 0) {
+        await manpower.insertMany(entries.map((e: any) => {
+          const { _id, ...rest } = e as any;
+          return rest;
+        }));
+      }
+    } else {
+      // Append: upsert each entry matching centreCode + serviceName + designation
+      for (const entry of entries) {
+        const { _id, ...doc } = entry as any;
+        await manpower.updateOne(
+          { centreCode: doc.centreCode, serviceName: doc.serviceName, designation: doc.designation },
+          { $set: doc },
+          { upsert: true }
+        );
+      }
+    }
+
+    return res.json({ success: true, count: entries.length });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE manpower entries by centreCode
+app.delete('/api/manpower/:centreCode', async (req: Request, res: Response) => {
+  try {
+    const { centreCode } = req.params;
+    await manpower.deleteMany({ centreCode });
+    return res.json({ success: true });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
   }

@@ -39,8 +39,8 @@ import {
   CheckSquare,
   MessageSquare
 } from 'lucide-react';
-import { CSOProfile, SurveyQuestion, SurveyRecord, Language, Assessment } from '../../types/survey';
-import { parseCSOExcelFile, downloadSampleExcelRoster } from '../../utils/excelParser';
+import { CSOProfile, SurveyQuestion, SurveyRecord, Language, Assessment, ManpowerEntry } from '../../types/survey';
+import { parseCSOExcelFile, downloadSampleExcelRoster, parseManpowerExcelFile, downloadManpowerTemplate } from '../../utils/excelParser';
 import { DEFAULT_SURVEY_QUESTIONS } from '../../data/defaultQuestions';
 import {
   getAllSurveySubmissions,
@@ -50,6 +50,7 @@ import {
 import { CSOLiveLinkCard } from './CSOLiveLinkCard';
 import { AssessmentManager } from './AssessmentManager';
 import { fetchServerState, clearAllServerData } from '../../utils/apiSync';
+import { fetchAllManpower, uploadManpower } from '../../api/client';
 
 interface AdminPanelProps {
   csoRoster: CSOProfile[];
@@ -75,7 +76,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   language
 }) => {
   // Navigation Tabs: 'survey_progress' (default primary dashboard), 'assessments', 'excel_roster'
-  const [activeAdminTab, setActiveAdminTab] = useState<'survey_progress' | 'assessments' | 'excel_roster'>('survey_progress');
+  const [activeAdminTab, setActiveAdminTab] = useState<'survey_progress' | 'assessments' | 'excel_roster' | 'manpower_roster'>('survey_progress');
   const [selectedAssessmentLedgerFilter, setSelectedAssessmentLedgerFilter] = useState<string>('all');
 
   // Real-time Survey Submissions State
@@ -109,6 +110,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   } | null>(null);
   const [rosterSearch, setRosterSearch] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Manpower Roster State
+  const [manpowerEntries, setManpowerEntries] = useState<ManpowerEntry[]>([]);
+  const [manpowerFilter, setManpowerFilter] = useState<string>('all');
+  const [manpowerUploading, setManpowerUploading] = useState(false);
+  const [manpowerFeedback, setManpowerFeedback] = useState<{ success: boolean; message: string; errors?: string[] } | null>(null);
+  const [manpowerReplaceMode, setManpowerReplaceMode] = useState(true);
+  const manpowerFileRef = useRef<HTMLInputElement>(null);
 
   // CSO Add & Edit Modals State
   const [isAddCSOModalOpen, setIsAddCSOModalOpen] = useState(false);
@@ -177,6 +186,56 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       clearInterval(interval);
     };
   }, []);
+
+  // Load manpower data
+  const refreshManpower = () => {
+    fetchAllManpower()
+      .then((entries) => setManpowerEntries(entries))
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    refreshManpower();
+  }, []);
+
+  useEffect(() => {
+    if (activeAdminTab === 'manpower_roster') {
+      refreshManpower();
+    }
+  }, [activeAdminTab]);
+
+  const handleManpowerFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setManpowerUploading(true);
+    setManpowerFeedback(null);
+    const result = await parseManpowerExcelFile(file);
+    if (!result.success || result.entries.length === 0) {
+      setManpowerUploading(false);
+      setManpowerFeedback({ success: false, message: 'Failed to parse manpower file.', errors: result.errors });
+      if (manpowerFileRef.current) manpowerFileRef.current.value = '';
+      return;
+    }
+    try {
+      await uploadManpower(result.entries, manpowerReplaceMode ? 'replace' : 'append');
+      setManpowerFeedback({ success: true, message: `${result.count} manpower entries uploaded successfully.`, errors: result.errors });
+      refreshManpower();
+    } catch (err: any) {
+      setManpowerFeedback({ success: false, message: `Upload failed: ${err.message}` });
+    }
+    setManpowerUploading(false);
+    if (manpowerFileRef.current) manpowerFileRef.current.value = '';
+  };
+
+  const handleDeleteManpowerCentre = async (centreCode: string) => {
+    if (!window.confirm(`Delete all manpower entries for Centre Code: ${centreCode}?`)) return;
+    try {
+      await fetch(`/api/manpower/${encodeURIComponent(centreCode)}`, { method: 'DELETE' });
+      refreshManpower();
+    } catch (err) {
+      console.error('Failed to delete manpower entries', err);
+    }
+  };
 
   // Compute summary metrics
   const totalCSOsCount = csoRoster.length;
@@ -585,6 +644,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         >
           <FileSpreadsheet className="w-4 h-4" />
           <span>CSO Excel Roster ({csoRoster.length})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveAdminTab('manpower_roster')}
+          className={`flex-1 py-3 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            activeAdminTab === 'manpower_roster'
+              ? 'bg-blue-900 text-white shadow-md'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          <span>Manpower Roster</span>
+          {manpowerEntries.length > 0 && (
+            <span className="px-2 py-0.5 text-[10px] rounded-full bg-white/20 text-white font-mono">
+              {manpowerEntries.length}
+            </span>
+          )}
         </button>
       </div>
 
@@ -1345,6 +1422,224 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           language={language}
         />
       )}
+
+      {/* ================= TAB 4: MANPOWER ROSTER ================= */}
+      {activeAdminTab === 'manpower_roster' && (() => {
+        const uniqueCentreCodes = Array.from(new Set(manpowerEntries.map((e) => e.centreCode).filter(Boolean)));
+        const filteredEntries = manpowerFilter === 'all'
+          ? manpowerEntries
+          : manpowerEntries.filter((e) => e.centreCode === manpowerFilter);
+
+        // Group entries by centreCode
+        const groupedEntries: Record<string, ManpowerEntry[]> = {};
+        filteredEntries.forEach((entry) => {
+          if (!groupedEntries[entry.centreCode]) groupedEntries[entry.centreCode] = [];
+          groupedEntries[entry.centreCode].push(entry);
+        });
+
+        return (
+          <div className="space-y-5 animate-in fade-in duration-200">
+            {/* Upload Card */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Users className="w-5 h-5 text-blue-600" />
+                    <span>Upload Manpower Roster Excel</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Upload an Excel file with centre-wise manpower deployment details.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={downloadManpowerTemplate}
+                    className="px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Download Template</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Replace / Append toggle */}
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="manpowerReplaceMode"
+                  checked={manpowerReplaceMode}
+                  onChange={(e) => setManpowerReplaceMode(e.target.checked)}
+                  className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                />
+                <label htmlFor="manpowerReplaceMode" className="text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
+                  Replace existing entries for uploaded centre codes (recommended)
+                </label>
+              </div>
+
+              {/* Dropzone */}
+              <div className="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 rounded-2xl p-6 text-center bg-slate-50/50 dark:bg-slate-800/30 transition-all relative">
+                <input
+                  ref={manpowerFileRef}
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={handleManpowerFileUpload}
+                  disabled={manpowerUploading}
+                  aria-label="Upload manpower roster Excel file"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                />
+                <div className="max-w-sm mx-auto space-y-2 pointer-events-none">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-950 text-blue-600 mx-auto flex items-center justify-center">
+                    <Upload className="w-6 h-6" />
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                    {manpowerUploading ? 'Parsing Manpower Excel...' : 'Click to Upload Manpower Excel'}
+                  </h4>
+                  <p className="text-xs text-slate-500">Supports .xlsx, .xls, .csv</p>
+                </div>
+              </div>
+
+              {/* Feedback */}
+              {manpowerFeedback && (
+                <div className={`p-4 rounded-xl border text-xs space-y-2 ${
+                  manpowerFeedback.success
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
+                    : 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200'
+                }`}>
+                  <div className="font-bold flex items-center gap-2">
+                    {manpowerFeedback.success
+                      ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      : <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />}
+                    <span>{manpowerFeedback.message}</span>
+                  </div>
+                  {manpowerFeedback.errors && manpowerFeedback.errors.length > 0 && (
+                    <ul className="list-disc list-inside text-[11px] font-mono space-y-0.5 pl-2 opacity-90">
+                      {manpowerFeedback.errors.slice(0, 5).map((err, idx) => <li key={idx}>{err}</li>)}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Filter + Table */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+              <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Users className="w-4 h-4 text-blue-600" />
+                  <span>Manpower Deployment ({filteredEntries.length} entries)</span>
+                </h3>
+                {uniqueCentreCodes.length > 0 && (
+                  <div className="relative w-full sm:w-52">
+                    <Filter className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <select
+                      value={manpowerFilter}
+                      onChange={(e) => setManpowerFilter(e.target.value)}
+                      aria-label="Filter manpower by centre"
+                      className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    >
+                      <option value="all">All Centres ({uniqueCentreCodes.length})</option>
+                      {uniqueCentreCodes.map((code) => (
+                        <option key={code} value={code}>{code}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {Object.keys(groupedEntries).length === 0 ? (
+                <div className="py-12 text-center text-slate-500 space-y-2">
+                  <Users className="w-8 h-8 mx-auto text-slate-400" />
+                  <p className="font-bold text-sm text-slate-700 dark:text-slate-300">No manpower data uploaded yet.</p>
+                  <p className="text-xs text-slate-400">Upload an Excel file above to see centre-wise manpower breakdown.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {Object.entries(groupedEntries).map(([code, entries]) => {
+                    const districtName = entries[0]?.district || '';
+                    return (
+                      <div key={code} className="p-4 space-y-3">
+                        {/* Group header */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-black text-amber-600 dark:text-amber-400 text-sm bg-amber-50 dark:bg-amber-950/60 px-2.5 py-1 rounded-lg border border-amber-200 dark:border-amber-800">
+                              {code}
+                            </span>
+                            {districtName && (
+                              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1">
+                                <MapPin className="w-3 h-3 text-blue-500" />
+                                {districtName}
+                              </span>
+                            )}
+                            <span className="text-[11px] font-mono text-slate-500">
+                              {entries.length} deployment{entries.length !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteManpowerCentre(code)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg cursor-pointer transition-colors"
+                            title={`Delete all manpower entries for ${code}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        {/* Entries table */}
+                        <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800">
+                          <table className="w-full text-left text-xs">
+                            <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-700">
+                              <tr>
+                                <th className="py-2.5 px-3">Service Name</th>
+                                <th className="py-2.5 px-3">Designation</th>
+                                <th className="py-2.5 px-3 text-center">Count</th>
+                                <th className="py-2.5 px-3">Contact Name</th>
+                                <th className="py-2.5 px-3">Phone</th>
+                                <th className="py-2.5 px-3 text-center">Status</th>
+                                <th className="py-2.5 px-3 text-center">Confirmation</th>
+                                <th className="py-2.5 px-3">Notes</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                              {entries.map((entry, idx) => (
+                                <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                  <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">{entry.serviceName}</td>
+                                  <td className="py-2.5 px-3 text-slate-700 dark:text-slate-300">{entry.designation}</td>
+                                  <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-900 dark:text-white">{entry.staffCount}</td>
+                                  <td className="py-2.5 px-3 text-slate-700 dark:text-slate-300">{entry.contactName}</td>
+                                  <td className="py-2.5 px-3 font-mono text-slate-600 dark:text-slate-400">{entry.contactPhone}</td>
+                                  <td className="py-2.5 px-3 text-center">
+                                    <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                      (entry.status || '').toLowerCase().includes('assign')
+                                        ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                        : 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                                    }`}>
+                                      {entry.status || '—'}
+                                    </span>
+                                  </td>
+                                  <td className="py-2.5 px-3 text-center">
+                                    <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                      (entry.confirmationStatus || '').toLowerCase().includes('confirm')
+                                        ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                        : 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                                    }`}>
+                                      {entry.confirmationStatus || '—'}
+                                    </span>
+                                  </td>
+                                  <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 italic max-w-[120px] truncate" title={entry.notes}>{entry.notes || '—'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ================= COMPLETED SURVEY DETAILS DOSSIER MODAL ================= */}
       {selectedSurveyRecord && (

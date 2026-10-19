@@ -206,6 +206,19 @@ export interface StaffEntry {
   mobile: string;
 }
 
+export interface ManpowerEntry {
+  centreCode: string;
+  district: string;
+  serviceName: string;
+  designation: string;
+  staffCount: number;
+  contactName: string;
+  contactPhone: string;
+  status: string;
+  confirmationStatus: string;
+  notes?: string;
+}
+
 export interface SurveyRecord {
   id: string;
   assessmentId?: string;

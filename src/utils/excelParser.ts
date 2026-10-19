@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { CSOProfile } from '../types/survey';
+import { CSOProfile, ManpowerEntry } from '../types/survey';
 
 export interface ExcelImportResult {
   success: boolean;
@@ -494,4 +494,203 @@ export function downloadSampleExcelRoster(): void {
   XLSX.utils.book_append_sheet(workbook, worksheet, 'SSSG_CSO_Roster');
 
   XLSX.writeFile(workbook, 'UPSSSC_CSO_Deputation_Roster_Template.xlsx');
+}
+
+// ==================== MANPOWER EXCEL FUNCTIONS ====================
+
+export interface ManpowerImportResult {
+  success: boolean;
+  entries: ManpowerEntry[];
+  count: number;
+  errors: string[];
+}
+
+/**
+ * Parses an uploaded Excel/CSV file for manpower roster data.
+ * Flexible header matching – same normalizeHeader logic as parseCSOExcelFile.
+ */
+export async function parseManpowerExcelFile(file: File): Promise<ManpowerImportResult> {
+  const errors: string[] = [];
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+
+    const firstSheetName = workbook.SheetNames[0];
+    if (!firstSheetName) {
+      return { success: false, entries: [], count: 0, errors: ['Excel file has no sheets.'] };
+    }
+
+    const worksheet = workbook.Sheets[firstSheetName];
+    const rows = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: '' });
+
+    if (!rows || rows.length === 0) {
+      return { success: false, entries: [], count: 0, errors: ['The uploaded sheet contains no data.'] };
+    }
+
+    // Column index map
+    interface ManpowerColMap {
+      centreCode?: number;
+      district?: number;
+      serviceName?: number;
+      designation?: number;
+      staffCount?: number;
+      contactName?: number;
+      contactPhone?: number;
+      status?: number;
+      confirmationStatus?: number;
+      notes?: number;
+    }
+
+    let headerRowIdx = -1;
+    let colMap: ManpowerColMap = {};
+
+    for (let r = 0; r < Math.min(rows.length, 10); r++) {
+      const row = rows[r];
+      if (!Array.isArray(row)) continue;
+
+      const tempMap: ManpowerColMap = {};
+
+      row.forEach((cell, idx) => {
+        const norm = normalizeHeader(String(cell || ''));
+        if (!norm) return;
+
+        if (norm === 'centrecode' || norm === 'code' || norm === 'centrecodeno' || norm.includes('centrecode')) {
+          tempMap.centreCode = idx;
+        } else if (norm === 'district' || norm === 'dist') {
+          tempMap.district = idx;
+        } else if (norm === 'servicename' || norm === 'service' || norm.includes('servicename')) {
+          tempMap.serviceName = idx;
+        } else if (norm === 'designation' || norm === 'post' || norm === 'role') {
+          tempMap.designation = idx;
+        } else if (norm === 'staffcount' || norm === 'count' || norm === 'strength') {
+          tempMap.staffCount = idx;
+        } else if (norm === 'confirmationstatus' || norm === 'confirmationstatus' || norm === 'confirmed') {
+          tempMap.confirmationStatus = idx;
+        } else if (norm.includes('contactname') || norm === 'name') {
+          tempMap.contactName = idx;
+        } else if (
+          norm.includes('contactphone') ||
+          norm === 'phone' ||
+          norm === 'mobile' ||
+          norm === 'contact'
+        ) {
+          tempMap.contactPhone = idx;
+        } else if (norm === 'status' || norm === 'deploymentstatus') {
+          tempMap.status = idx;
+        } else if (norm === 'notes' || norm === 'remarks' || norm === 'comment') {
+          tempMap.notes = idx;
+        }
+      });
+
+      const matches = Object.keys(tempMap).length;
+      if (matches >= 2) {
+        headerRowIdx = r;
+        colMap = tempMap;
+        break;
+      }
+    }
+
+    if (headerRowIdx === -1) {
+      return {
+        success: false,
+        entries: [],
+        count: 0,
+        errors: [
+          'Could not detect column headers. Ensure the sheet has headers like: Centre Code, District, Service Name, Designation, Staff Count, Contact Name, Contact Phone, Status, Confirmation Status.'
+        ]
+      };
+    }
+
+    const entries: ManpowerEntry[] = [];
+
+    for (let r = headerRowIdx + 1; r < rows.length; r++) {
+      const row = rows[r];
+      if (!Array.isArray(row) || row.every((c) => c === '' || c === null || c === undefined)) {
+        continue;
+      }
+
+      const centreCode = colMap.centreCode !== undefined ? String(row[colMap.centreCode] || '').trim() : '';
+      if (!centreCode) continue; // skip rows without centre code
+
+      const entry: ManpowerEntry = {
+        centreCode,
+        district: colMap.district !== undefined ? String(row[colMap.district] || '').trim() : '',
+        serviceName: colMap.serviceName !== undefined ? String(row[colMap.serviceName] || '').trim() : '',
+        designation: colMap.designation !== undefined ? String(row[colMap.designation] || '').trim() : '',
+        staffCount: colMap.staffCount !== undefined ? (parseInt(String(row[colMap.staffCount]).replace(/\D/g, ''), 10) || 0) : 0,
+        contactName: colMap.contactName !== undefined ? String(row[colMap.contactName] || '').trim() : '',
+        contactPhone: colMap.contactPhone !== undefined ? extractTenDigitMobile(row[colMap.contactPhone]) : '',
+        status: colMap.status !== undefined ? String(row[colMap.status] || '').trim() : '',
+        confirmationStatus: colMap.confirmationStatus !== undefined ? String(row[colMap.confirmationStatus] || '').trim() : '',
+        notes: colMap.notes !== undefined ? String(row[colMap.notes] || '').trim() : ''
+      };
+
+      entries.push(entry);
+    }
+
+    return {
+      success: entries.length > 0,
+      entries,
+      count: entries.length,
+      errors: entries.length === 0 ? ['No valid manpower rows found in the uploaded file.', ...errors] : errors
+    };
+  } catch (err: any) {
+    console.error('Error parsing manpower Excel file', err);
+    return {
+      success: false,
+      entries: [],
+      count: 0,
+      errors: [`Failed to parse file: ${err.message || 'Unknown format'}`]
+    };
+  }
+}
+
+/**
+ * Downloads a sample Manpower Roster Template Excel file
+ */
+export function downloadManpowerTemplate(): void {
+  const sampleData = [
+    {
+      'Centre Code': 'LKO-101',
+      'District': 'Lucknow',
+      'Service Name': 'Biometric & Attendance',
+      'Designation': 'Biometric Operator',
+      'Staff Count': 3,
+      'Contact Name': 'Ramesh Kumar',
+      'Contact Phone': '9876543210',
+      'Status': 'Assigned',
+      'Confirmation Status': 'Confirmed',
+      'Notes': ''
+    },
+    {
+      'Centre Code': 'LKO-101',
+      'District': 'Lucknow',
+      'Service Name': 'Frisking & Metal Detection',
+      'Designation': 'Frisking Officer',
+      'Staff Count': 4,
+      'Contact Name': 'Suresh Singh',
+      'Contact Phone': '9876543211',
+      'Status': 'Assigned',
+      'Confirmation Status': 'Pending',
+      'Notes': 'Female staff required'
+    },
+    {
+      'Centre Code': 'AGR-205',
+      'District': 'Agra',
+      'Service Name': 'CCTV Surveillance',
+      'Designation': 'CCTV Operator',
+      'Staff Count': 2,
+      'Contact Name': 'Priya Sharma',
+      'Contact Phone': '9876543212',
+      'Status': 'Assigned',
+      'Confirmation Status': 'Confirmed',
+      'Notes': ''
+    }
+  ];
+
+  const worksheet = XLSX.utils.json_to_sheet(sampleData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Manpower_Template');
+  XLSX.writeFile(workbook, 'Manpower_Roster_Template.xlsx');
 }

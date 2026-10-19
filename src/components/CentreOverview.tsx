@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   MapPin,
   CheckCircle,
@@ -17,9 +17,11 @@ import {
   FileText,
   ChevronRight,
   AlertTriangle,
-  ClipboardList
+  ClipboardList,
+  Users
 } from 'lucide-react';
-import { CSOProfile, SurveyRecord, Language, Assessment } from '../types/survey';
+import { CSOProfile, SurveyRecord, Language, Assessment, ManpowerEntry } from '../types/survey';
+import { fetchManpowerByCentre } from '../api/client';
 
 interface CentreOverviewProps {
   csoProfile: CSOProfile;
@@ -42,6 +44,20 @@ export const CentreOverview: React.FC<CentreOverviewProps> = ({
 }) => {
   // Dossier modal for inspecting a completed assessment's recorded answers
   const [viewingRecord, setViewingRecord] = useState<SurveyRecord | null>(null);
+
+  // Manpower data for this centre
+  const [manpowerData, setManpowerData] = useState<ManpowerEntry[]>([]);
+  const [manpowerLoading, setManpowerLoading] = useState(false);
+
+  useEffect(() => {
+    const code = (csoProfile.centreCode || '').trim();
+    if (!code) return;
+    setManpowerLoading(true);
+    fetchManpowerByCentre(code)
+      .then((entries) => setManpowerData(entries))
+      .catch(() => setManpowerData([]))
+      .finally(() => setManpowerLoading(false));
+  }, [csoProfile.centreCode]);
 
   // Exact fields directly from Excel roster (resolving against authoritative csoRoster)
   const cleanMob = (csoProfile.registeredMobile || csoProfile.mobile || '').replace(/\D/g, '').slice(-10);
@@ -363,6 +379,84 @@ export const CentreOverview: React.FC<CentreOverviewProps> = ({
             })}
           </div>
         )}
+      </div>
+
+      {/* ================= MY CENTRE MANPOWER SECTION ================= */}
+      <div className="space-y-4 pt-2">
+        <div className="flex items-center gap-2">
+          <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          <div>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+              My Centre Manpower
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">मेरे केंद्र की जनशक्ति</p>
+          </div>
+        </div>
+
+        {manpowerLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-blue-600" />
+          </div>
+        ) : manpowerData.length === 0 ? (
+          <div className="p-5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl text-xs text-amber-800 dark:text-amber-300 font-medium flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+            <span>Manpower data not uploaded yet by Admin.</span>
+          </div>
+        ) : (() => {
+          // Group by serviceName
+          const serviceGroups: Record<string, ManpowerEntry[]> = {};
+          manpowerData.forEach((entry) => {
+            const key = entry.serviceName || 'Other';
+            if (!serviceGroups[key]) serviceGroups[key] = [];
+            serviceGroups[key].push(entry);
+          });
+
+          return (
+            <div className="space-y-4">
+              {Object.entries(serviceGroups).map(([serviceName, entries]) => (
+                <div key={serviceName} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                  <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
+                      {serviceName}
+                    </span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
+                        <tr>
+                          <th className="py-2.5 px-4">Designation</th>
+                          <th className="py-2.5 px-4 text-center">Count</th>
+                          <th className="py-2.5 px-4">Contact Name</th>
+                          <th className="py-2.5 px-4">Phone</th>
+                          <th className="py-2.5 px-4 text-center">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {entries.map((entry, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                            <td className="py-2.5 px-4 font-semibold text-slate-800 dark:text-slate-200">{entry.designation}</td>
+                            <td className="py-2.5 px-4 text-center font-mono font-bold text-slate-900 dark:text-white">{entry.staffCount}</td>
+                            <td className="py-2.5 px-4 text-slate-700 dark:text-slate-300">{entry.contactName}</td>
+                            <td className="py-2.5 px-4 font-mono text-slate-600 dark:text-slate-400">{entry.contactPhone}</td>
+                            <td className="py-2.5 px-4 text-center">
+                              <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                (entry.confirmationStatus || entry.status || '').toLowerCase().includes('confirm')
+                                  ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                  : 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                              }`}>
+                                {entry.confirmationStatus || entry.status || '—'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </div>
 
       {/* ================= COMPLETED SURVEY DOSSIER MODAL ================= */}

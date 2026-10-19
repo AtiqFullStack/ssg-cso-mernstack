@@ -16,7 +16,7 @@ export default defineConfig(() => {
       hmr: process.env.DISABLE_HMR !== 'true',
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
       // Allow all hosts (production domain + any VPS/subdomain)
-      allowedHosts: 'all',
+      allowedHosts: ['cso.edb.sssgsolutions.in', 'localhost'],
     },
   };
 });
