@@ -1,0 +1,6 @@
+{
+  "name": "SSSG SOLUTIONS - CSO Centre Survey Portal",
+  "description": "SSSG SOLUTIONS - Official mobile-responsive inspection and Mock Day survey portal for UPSSSC PET 2026 examination centres.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
