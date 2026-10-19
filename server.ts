@@ -9,7 +9,7 @@ import { initializeCollections } from './src/db/initializeDB';
 dotenv.config();
 
 const app = express();
-const PORT = Number(process.env.PORT) || 3000;
+const PORT = Number(process.env.PORT) || 1113;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://danishfzeetechz_db_user:2rNKXDkyxzjXA71x@cluster0.zbz3sjp.mongodb.net/cso_portal?retryWrites=true&w=majority';
 const MONGO_DB_NAME = process.env.MONGO_DB_NAME || 'cso_portal';
 

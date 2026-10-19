@@ -91,7 +91,7 @@ export default function App() {
   useEffect(() => {
     const interval = setInterval(() => {
       loadDataFromAPI();
-    }, 3000);
+    }, 1113);
 
     return () => clearInterval(interval);
   }, []);
