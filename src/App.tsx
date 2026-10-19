@@ -11,7 +11,8 @@ import {
   SurveyRecord,
   Language,
   SurveyQuestion,
-  Assessment
+  Assessment,
+  StaffEntry
 } from './types/survey';
 import {
   getActiveCSO,
@@ -286,6 +287,20 @@ export default function App() {
     saveSurveyDraft(updated);
   };
 
+  const handleStaffResponseChange = (questionId: string, staff: StaffEntry[]) => {
+    if (!surveyRecord) return;
+    const updated: SurveyRecord = {
+      ...surveyRecord,
+      staffResponses: {
+        ...(surveyRecord.staffResponses || {}),
+        [questionId]: staff
+      },
+      updatedAt: new Date().toISOString()
+    };
+    setSurveyRecord(updated);
+    saveSurveyDraft(updated);
+  };
+
   const handleSubmitSurvey = async (submittedRemarks = '') => {
     if (!surveyRecord || !activeCSO) return;
 
@@ -380,8 +395,10 @@ export default function App() {
                 activeQuestions={currentAssessmentQuestions}
                 questionResponses={surveyRecord.questionResponses || {}}
                 questionRemarks={surveyRecord.questionRemarks || {}}
+                staffResponses={surveyRecord.staffResponses || {}}
                 onQuestionResponseChange={handleQuestionResponseChange}
                 onQuestionRemarkChange={handleQuestionRemarkChange}
+                onStaffResponseChange={handleStaffResponseChange}
                 onSubmitSurvey={(submittedRemarks) => {
                   handleSubmitSurvey(submittedRemarks);
                 }}

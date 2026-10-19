@@ -49,7 +49,7 @@ export interface SurveyQuestion {
   categoryHi: string;
   helperEn?: string;
   helperHi?: string;
-  optionsType?: 'YES_NO';
+  optionsType?: 'YES_NO' | 'STAFF_DETAILS';
   isActive: boolean;
   assessmentId?: string; // Optional link to specific assessment
   createdAt?: string;
@@ -201,6 +201,11 @@ export interface SubmittedSurveyData {
   submissionTimestampIso: string;
 }
 
+export interface StaffEntry {
+  name: string;
+  mobile: string;
+}
+
 export interface SurveyRecord {
   id: string;
   assessmentId?: string;
@@ -210,6 +215,8 @@ export interface SurveyRecord {
   // Dynamic question responses (Question ID -> 'YES' | 'NO')
   questionResponses: Record<string, 'YES' | 'NO'>;
   questionRemarks: Record<string, string>;
+  // Staff details responses (Question ID -> StaffEntry[])
+  staffResponses?: Record<string, StaffEntry[]>;
   photos: PhotoEvidenceItem[];
   deficiencies: DeficiencyItem[];
   status: SurveyStatus;

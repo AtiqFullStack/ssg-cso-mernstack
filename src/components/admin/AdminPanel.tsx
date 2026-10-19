@@ -2240,12 +2240,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     filteredQuestions.map((q, idx) => {
                       const response = responsesMap[q.id];
                       const remark = remarksMap[q.id];
+                      const staffEntries = currentModalRecord?.staffResponses?.[q.id] || [];
+                      const isStaffType = q.optionsType === 'STAFF_DETAILS';
 
                       return (
                         <div
                           key={q.id || idx}
                           className={`p-4 rounded-2xl border transition-all ${
-                            response === 'YES'
+                            isStaffType
+                              ? 'bg-blue-50/40 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900'
+                              : response === 'YES'
                               ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
                               : response === 'NO'
                               ? 'bg-rose-50/40 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900'
@@ -2261,6 +2265,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 <span className="text-[10px] text-slate-500 font-bold uppercase">
                                   {q.categoryHi || q.categoryEn}
                                 </span>
+                                {isStaffType && (
+                                  <span className="text-[10px] font-bold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800">
+                                    STAFF DETAILS
+                                  </span>
+                                )}
                               </div>
 
                               {/* Hindi Question Text */}
@@ -2276,9 +2285,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               )}
                             </div>
 
-                            {/* Response Badge */}
+                            {/* Response Badge - YES/NO or Staff count */}
                             <div className="shrink-0 self-start sm:self-center">
-                              {response === 'YES' ? (
+                              {isStaffType ? (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300 font-mono font-black text-xs border border-blue-300 dark:border-blue-800">
+                                  <Users className="w-4 h-4 text-blue-600" />
+                                  <span>{staffEntries.length} Staff</span>
+                                </span>
+                              ) : response === 'YES' ? (
                                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-mono font-black text-xs border border-emerald-300 dark:border-emerald-800 shadow-2xs">
                                   <Check className="w-4 h-4 text-emerald-600 stroke-[3]" />
                                   <span>YES (हाँ)</span>
@@ -2296,6 +2310,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             </div>
                           </div>
 
+                          {/* Staff Details Table */}
+                          {isStaffType && staffEntries.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-800">
+                              <div className="text-[11px] font-bold text-blue-800 dark:text-blue-300 uppercase mb-2 flex items-center gap-1">
+                                <Users className="w-3 h-3" />
+                                Staff Present ({staffEntries.length})
+                              </div>
+                              <div className="space-y-1.5">
+                                {staffEntries.map((s, si) => (
+                                  <div key={si} className="flex items-center gap-3 p-2 bg-white dark:bg-slate-900 rounded-lg border border-blue-100 dark:border-blue-900 text-xs">
+                                    <span className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-black text-[10px] flex items-center justify-center shrink-0">
+                                      {si + 1}
+                                    </span>
+                                    <span className="font-bold text-slate-800 dark:text-white flex-1">{s.name || '—'}</span>
+                                    <span className="font-mono text-slate-500">{s.mobile || '—'}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                           {/* Individual Question Remark if provided by CSO */}
                           {remark && (
                             <div className="mt-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">

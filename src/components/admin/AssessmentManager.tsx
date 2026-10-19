@@ -4,6 +4,7 @@ import {
   Plus,
   Edit2,
   Trash2,
+  Users,
   Copy,
   ArrowLeft,
   ArrowUp,
@@ -68,6 +69,7 @@ export const AssessmentManager: React.FC<AssessmentManagerProps> = ({
   const [newTextEn, setNewTextEn] = useState('');
   const [newCategoryEn, setNewCategoryEn] = useState('General Inspection');
   const [newCategoryHi, setNewCategoryHi] = useState('सामान्य निरीक्षण');
+  const [newOptionsType, setNewOptionsType] = useState<'YES_NO' | 'STAFF_DETAILS'>('YES_NO');
   const [newIsActive, setNewIsActive] = useState(true);
 
   const selectedAssessment = assessments.find((a) => a.id === selectedAssessmentId);
@@ -216,7 +218,7 @@ export const AssessmentManager: React.FC<AssessmentManagerProps> = ({
       textEn: newTextEn.trim() || newTextHi.trim(),
       categoryEn: newCategoryEn.trim() || 'General Inspection',
       categoryHi: newCategoryHi.trim() || 'सामान्य निरीक्षण',
-      optionsType: 'YES_NO',
+      optionsType: newOptionsType,
       isActive: newIsActive,
       assessmentId: selectedAssessment.id,
       createdAt: new Date().toISOString(),
@@ -226,6 +228,7 @@ export const AssessmentManager: React.FC<AssessmentManagerProps> = ({
     updateQuestionsInCurrentAssessment([...currentQuestions, newQ]);
     setNewTextHi('');
     setNewTextEn('');
+    setNewOptionsType('YES_NO');
     setIsAddQuestionModalOpen(false);
   };
 
@@ -788,7 +791,7 @@ export const AssessmentManager: React.FC<AssessmentManagerProps> = ({
             className="px-4 py-2.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4 text-amber-400 stroke-[3]" />
-            <span>Add New Question (YES / NO)</span>
+            <span>Add New Question</span>
           </button>
         </div>
       </div>
@@ -879,9 +882,16 @@ export const AssessmentManager: React.FC<AssessmentManagerProps> = ({
 
                 <div className="space-y-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                      Options: YES / NO
-                    </span>
+                    {q.optionsType === 'STAFF_DETAILS' ? (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 flex items-center gap-1">
+                        <Users className="w-3 h-3" />
+                        Staff Details (Count + Name/Mobile)
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                        Options: YES / NO
+                      </span>
+                    )}
 
                     {q.isActive ? (
                       <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
@@ -1011,18 +1021,40 @@ export const AssessmentManager: React.FC<AssessmentManagerProps> = ({
                 />
               </div>
 
-              <div className="p-3 bg-slate-100 dark:bg-slate-800/80 rounded-xl flex items-center justify-between">
-                <div>
-                  <span className="font-bold text-slate-800 dark:text-slate-200 block text-xs">
-                    Response Format: YES / NO
-                  </span>
-                  <span className="text-[10px] text-slate-500">
-                    प्रत्येक प्रश्न के लिए दो विकल्प (YES / NO) स्वतः उपलब्ध रहेंगे।
-                  </span>
-                </div>
-                <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950 px-2.5 py-1 rounded-lg">
-                  YES / NO
+              <div className="p-3 bg-slate-100 dark:bg-slate-800/80 rounded-xl space-y-2">
+                <span className="font-bold text-slate-800 dark:text-slate-200 block text-xs">
+                  Response Type / उत्तर का प्रकार *
                 </span>
+                <div className="flex gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer flex-1 p-2.5 rounded-xl border-2 transition-all bg-white dark:bg-slate-900"
+                    style={{ borderColor: newOptionsType === 'YES_NO' ? '#2563eb' : '#e2e8f0' }}>
+                    <input
+                      type="radio"
+                      name="optionsType"
+                      checked={newOptionsType === 'YES_NO'}
+                      onChange={() => setNewOptionsType('YES_NO')}
+                      className="text-blue-600"
+                    />
+                    <div>
+                      <span className="font-bold text-xs text-slate-800 dark:text-slate-200 block">YES / NO</span>
+                      <span className="text-[10px] text-slate-500">Simple yes or no answer</span>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer flex-1 p-2.5 rounded-xl border-2 transition-all bg-white dark:bg-slate-900"
+                    style={{ borderColor: newOptionsType === 'STAFF_DETAILS' ? '#2563eb' : '#e2e8f0' }}>
+                    <input
+                      type="radio"
+                      name="optionsType"
+                      checked={newOptionsType === 'STAFF_DETAILS'}
+                      onChange={() => setNewOptionsType('STAFF_DETAILS')}
+                      className="text-blue-600"
+                    />
+                    <div>
+                      <span className="font-bold text-xs text-slate-800 dark:text-slate-200 block">Staff Details</span>
+                      <span className="text-[10px] text-slate-500">Count + Name & Mobile of each staff</span>
+                    </div>
+                  </label>
+                </div>
               </div>
 
               <div className="flex items-center gap-2 pt-1">
