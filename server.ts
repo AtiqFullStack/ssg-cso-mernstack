@@ -76,6 +76,26 @@ function cleanMobile(mob: any): string {
 
 // ================= API ROUTES =================
 
+// Admin Login - username/password from .env
+app.post('/api/admin/login', (req: Request, res: Response) => {
+  const { username, password } = req.body;
+
+  const adminUser = process.env.ADMIN_USERNAME || 'admin';
+  const adminPass = process.env.ADMIN_PASSWORD || 'UPSSSC@2026';
+
+  if (!username || !password) {
+    return res.status(400).json({ success: false, error: 'Username aur password dono zaroori hain' });
+  }
+
+  if (username.trim() === adminUser && password.trim() === adminPass) {
+    console.log(`[ADMIN] Login successful for user: ${username}`);
+    return res.json({ success: true, message: 'Admin login successful' });
+  } else {
+    console.warn(`[ADMIN] Failed login attempt for user: ${username}`);
+    return res.status(401).json({ success: false, error: 'Invalid username or password' });
+  }
+});
+
 // Health check
 app.get('/api/health', async (_req: Request, res: Response) => {
   try {

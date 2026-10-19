@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, ShieldAlert, KeyRound, X, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Lock, ShieldAlert, KeyRound, User, X, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { Language } from '../../types/survey';
 
 interface AdminLoginModalProps {
@@ -15,31 +15,46 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
   onSuccess,
   language
 }) => {
-  const [adminPin, setAdminPin] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (adminPin.trim() === 'UPSSSC@2026' || adminPin.trim() === 'admin123' || adminPin.trim() === 'admin') {
-      onSuccess();
-      setAdminPin('');
-      setError('');
-    } else {
-      setError(
-        language === 'hi'
-          ? 'अमान्य एडमिन पासकोड। कृपया पुनः प्रयास करें।'
-          : 'Invalid Admin Security Key. Please verify passcode.'
-      );
-    }
-  };
+    setError('');
 
-  const handleQuickDemoAccess = () => {
-    setAdminPin('UPSSSC@2026');
-    setTimeout(() => {
-      onSuccess();
-    }, 200);
+    if (!username.trim() || !password.trim()) {
+      setError('Username aur password dono required hain.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.trim(), password: password.trim() })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setUsername('');
+        setPassword('');
+        setError('');
+        onSuccess();
+      } else {
+        setError(data.error || 'Invalid username or password.');
+      }
+    } catch (err) {
+      setError('Server se connect nahi ho paya. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -47,64 +62,95 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
       <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-6 text-white shadow-2xl relative">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-white p-1"
+          className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
 
-        <div className="text-center mb-5">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[10px] font-black uppercase tracking-widest mb-2">
+        {/* Header */}
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[10px] font-black uppercase tracking-widest mb-3">
             <span>SSSG SOLUTIONS</span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 mx-auto flex items-center justify-center mb-2">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 mx-auto flex items-center justify-center mb-3">
             <Lock className="w-6 h-6" />
           </div>
-          <h3 className="text-lg font-bold">Admin Console Authentication</h3>
+          <h3 className="text-lg font-bold">Admin Console Login</h3>
           <p className="text-xs text-slate-400 mt-1">
-            Authorized UPSSSC Commission Controller Access
+            UPSSSC Commission Authorized Access Only
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Username */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
-              Admin Passcode / Security Key
+              Username
             </label>
             <div className="relative">
+              <User className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
-                type="password"
+                type="text"
                 autoFocus
-                value={adminPin}
-                onChange={(e) => setAdminPin(e.target.value)}
-                placeholder="Enter security key..."
-                className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter admin username"
+                autoComplete="username"
+                className="w-full pl-9 pr-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
               />
-              <KeyRound className="w-4 h-4 text-slate-500 absolute right-3 top-1/2 -translate-y-1/2" />
             </div>
-            <div className="flex items-center justify-between mt-1 text-[11px] text-slate-400">
-              <span>Default Key: <strong className="font-mono text-amber-400">UPSSSC@2026</strong></span>
+          </div>
+
+          {/* Password */}
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+              Password
+            </label>
+            <div className="relative">
+              <KeyRound className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter password"
+                autoComplete="current-password"
+                className="w-full pl-9 pr-10 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+              />
               <button
                 type="button"
-                onClick={handleQuickDemoAccess}
-                className="text-amber-400 hover:underline font-semibold"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 cursor-pointer"
               >
-                1-Click Auto Fill
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
           </div>
 
+          {/* Error */}
           {error && (
-            <div className="p-2.5 rounded-lg bg-rose-950/60 border border-rose-800 text-xs text-rose-300">
-              {error}
+            <div className="p-2.5 rounded-lg bg-rose-950/60 border border-rose-800 text-xs text-rose-300 flex items-center gap-2">
+              <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
+              <span>{error}</span>
             </div>
           )}
 
+          {/* Submit */}
           <button
             type="submit"
-            className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/20"
+            disabled={isLoading}
+            className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 disabled:opacity-60 disabled:cursor-not-allowed text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
           >
-            <span>Unlock Admin Panel</span>
-            <ArrowRight className="w-4 h-4" />
+            {isLoading ? (
+              <>
+                <div className="w-3.5 h-3.5 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin" />
+                <span>Verifying...</span>
+              </>
+            ) : (
+              <>
+                <span>Login to Admin Panel</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
           </button>
         </form>
       </div>
