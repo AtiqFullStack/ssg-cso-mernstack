@@ -510,42 +510,23 @@ export const SurveyWizard: React.FC<SurveyWizardProps> = ({
                               key={si}
                               type="button"
                               onClick={() => handleToggleManpowerEntry(q.id, mp, !isChecked)}
-                              className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 transition-all active:scale-[0.98] cursor-pointer text-left ${
+                              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border-2 transition-all active:scale-[0.98] cursor-pointer text-left ${
                                 isChecked
                                   ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-400 dark:border-emerald-600'
                                   : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300'
                               }`}
                             >
-                              {/* Checkbox */}
-                              <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors ${
+                              <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
                                 isChecked
                                   ? 'bg-emerald-500 border-emerald-500'
                                   : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600'
                               }`}>
-                                {isChecked && <Check className="w-4 h-4 text-white stroke-[3]" />}
+                                {isChecked && <Check className="w-3 h-3 text-white stroke-[3]" />}
                               </div>
-
-                              {/* Staff info */}
-                              <div className="flex-1 min-w-0">
-                                <div className="font-bold text-sm text-slate-900 dark:text-white truncate">
-                                  {mp.contactName || '—'}
-                                </div>
-                                <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5 flex-wrap">
-                                  <span className="font-medium">{mp.designation}</span>
-                                  {mp.serviceName && (
-                                    <span className="text-[10px] bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded font-mono">
-                                      {mp.serviceName}
-                                    </span>
-                                  )}
-                                </div>
+                              <div className="flex-1 min-w-0 flex items-center gap-2">
+                                <span className="font-bold text-sm text-slate-900 dark:text-white truncate">{mp.contactName || '—'}</span>
+                                <span className="text-xs text-slate-500 dark:text-slate-400 truncate shrink-0">{mp.designation}</span>
                               </div>
-
-                              {/* Phone */}
-                              {mp.contactPhone && (
-                                <span className="text-xs font-mono text-slate-500 dark:text-slate-400 shrink-0">
-                                  {mp.contactPhone}
-                                </span>
-                              )}
                             </button>
                           );
                         })}

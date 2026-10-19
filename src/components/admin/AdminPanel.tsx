@@ -603,66 +603,80 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       </div>
 
       {/* ================= ADMIN TOP NAVIGATION TABS ================= */}
-      <div className="flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl p-1.5 shadow-sm">
-        <button
-          type="button"
-          onClick={() => setActiveAdminTab('survey_progress')}
-          className={`flex-1 py-3 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-            activeAdminTab === 'survey_progress'
-              ? 'bg-blue-900 text-white shadow-md'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <Layers className="w-4 h-4" />
-          <span>Survey Progress Dashboard</span>
-          <span className="px-2 py-0.5 text-[10px] rounded-full bg-white/20 text-white font-mono">
-            {completedCount}/{totalCSOsCount}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveAdminTab('assessments')}
-          className={`flex-1 py-3 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-            activeAdminTab === 'assessments'
-              ? 'bg-blue-900 text-white shadow-md'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <HelpCircle className="w-4 h-4" />
-          <span>Assessments & Questions ({assessments.length})</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveAdminTab('excel_roster')}
-          className={`flex-1 py-3 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-            activeAdminTab === 'excel_roster'
-              ? 'bg-blue-900 text-white shadow-md'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <FileSpreadsheet className="w-4 h-4" />
-          <span>CSO Excel Roster ({csoRoster.length})</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveAdminTab('manpower_roster')}
-          className={`flex-1 py-3 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-            activeAdminTab === 'manpower_roster'
-              ? 'bg-blue-900 text-white shadow-md'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          <span>Manpower Roster</span>
-          {manpowerEntries.length > 0 && (
-            <span className="px-2 py-0.5 text-[10px] rounded-full bg-white/20 text-white font-mono">
-              {manpowerEntries.length}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-1.5 shadow-sm border border-slate-200 dark:border-slate-800">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+          <button
+            type="button"
+            onClick={() => setActiveAdminTab('survey_progress')}
+            className={`py-3 px-2 rounded-xl text-xs font-bold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 transition-all cursor-pointer min-h-[56px] sm:min-h-0 ${
+              activeAdminTab === 'survey_progress'
+                ? 'bg-blue-900 text-white shadow-md'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <Layers className="w-4 h-4 shrink-0" />
+            <span className="text-center leading-tight">Survey Progress</span>
+            <span className={`px-1.5 py-0.5 text-[10px] rounded-full font-mono ${
+              activeAdminTab === 'survey_progress' ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+            }`}>
+              {completedCount}/{totalCSOsCount}
             </span>
-          )}
-        </button>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveAdminTab('assessments')}
+            className={`py-3 px-2 rounded-xl text-xs font-bold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 transition-all cursor-pointer min-h-[56px] sm:min-h-0 ${
+              activeAdminTab === 'assessments'
+                ? 'bg-blue-900 text-white shadow-md'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <HelpCircle className="w-4 h-4 shrink-0" />
+            <span className="text-center leading-tight">Assessments</span>
+            <span className={`px-1.5 py-0.5 text-[10px] rounded-full font-mono ${
+              activeAdminTab === 'assessments' ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+            }`}>
+              {assessments.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveAdminTab('excel_roster')}
+            className={`py-3 px-2 rounded-xl text-xs font-bold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 transition-all cursor-pointer min-h-[56px] sm:min-h-0 ${
+              activeAdminTab === 'excel_roster'
+                ? 'bg-blue-900 text-white shadow-md'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <FileSpreadsheet className="w-4 h-4 shrink-0" />
+            <span className="text-center leading-tight">CSO Roster</span>
+            <span className={`px-1.5 py-0.5 text-[10px] rounded-full font-mono ${
+              activeAdminTab === 'excel_roster' ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+            }`}>
+              {csoRoster.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveAdminTab('manpower_roster')}
+            className={`py-3 px-2 rounded-xl text-xs font-bold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 transition-all cursor-pointer min-h-[56px] sm:min-h-0 ${
+              activeAdminTab === 'manpower_roster'
+                ? 'bg-blue-900 text-white shadow-md'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <Users className="w-4 h-4 shrink-0" />
+            <span className="text-center leading-tight">Manpower</span>
+            <span className={`px-1.5 py-0.5 text-[10px] rounded-full font-mono ${
+              activeAdminTab === 'manpower_roster' ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+            }`}>
+              {manpowerEntries.length > 0 ? manpowerEntries.length : '—'}
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* ================= TAB 1: SURVEY PROGRESS DASHBOARD ================= */}
@@ -850,239 +864,137 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
           </div>
 
-          {/* 3. DETAILED TABLE WITH REQUIRED COLUMNS */}
+          {/* 3. CENTRE SURVEY PROGRESS LEDGER — mobile card layout */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
             <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <span>Centre Survey Progress Ledger</span>
-                  <span className="text-xs font-mono font-normal text-slate-500">
-                    Showing {filteredProgressItems.length} of {csoProgressItems.length} centres
-                  </span>
-                </h3>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <span>Centre Survey Progress Ledger</span>
+                <span className="text-xs font-mono font-normal text-slate-500">
+                  {filteredProgressItems.length}/{csoProgressItems.length}
+                </span>
+              </h3>
+              <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold hidden sm:inline">● Auto-Sync</span>
+            </div>
+
+            {filteredProgressItems.length === 0 ? (
+              <div className="py-12 text-center text-slate-500 space-y-2 px-4">
+                <Users className="w-8 h-8 mx-auto text-slate-400" />
+                <p className="font-bold text-sm text-slate-700 dark:text-slate-300">
+                  {totalCSOsCount === 0 ? 'No CSOs in the roster yet.' : 'No CSOs match the filter.'}
+                </p>
+                {totalCSOsCount === 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveAdminTab('excel_roster')}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-900 text-white font-bold text-xs hover:bg-blue-800 cursor-pointer mt-2"
+                  >
+                    <FileSpreadsheet className="w-4 h-4" />
+                    Open CSO Roster Tab
+                  </button>
+                )}
               </div>
-              <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold hidden sm:inline">
-                ● Auto-Synchronized
-              </span>
-            </div>
+            ) : (
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                {filteredProgressItems.map((item) => {
+                  const district = item.cso.districtName || item.cso.district || 'Uttar Pradesh';
+                  const csoName = item.cso.csoName || item.cso.name;
+                  const centreName = item.cso.dutyCentreName || item.cso.centreName;
+                  const capacity = item.cso.centreSeatingCapacity || item.cso.candidateCapacity || 480;
+                  const yesC = Object.values(item.record?.questionResponses || {}).filter((r) => r === 'YES').length;
+                  const noC = Object.values(item.record?.questionResponses || {}).filter((r) => r === 'NO').length;
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 dark:bg-slate-800/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                  <tr>
-                    <th className="py-3 px-4">District Name</th>
-                    <th className="py-3 px-4">CSO Name</th>
-                    <th className="py-3 px-4">Registered Mobile Number</th>
-                    <th className="py-3 px-4">Duty Centre Name</th>
-                    <th className="py-3 px-4 text-center">Centre Seating Capacity</th>
-                    <th className="py-3 px-4 text-center">Survey Status</th>
-                    <th className="py-3 px-4 text-center">Responses & Remarks</th>
-                    <th className="py-3 px-4">Submission Date & Time</th>
-                  </tr>
-                </thead>
+                  const openModal = () => {
+                    setViewingResponsesCSOItem(item);
+                    setViewingModalAssessmentId(
+                      item.record?.assessmentId ||
+                      (selectedAssessmentLedgerFilter !== 'all' ? selectedAssessmentLedgerFilter : assessments[0]?.id || 'assessment_mock_day')
+                    );
+                  };
 
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {filteredProgressItems.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="py-12 text-center text-slate-500">
-                        <Users className="w-8 h-8 mx-auto text-slate-400 mb-2" />
-                        <p className="font-bold text-sm text-slate-700 dark:text-slate-300">
-                          {totalCSOsCount === 0
-                            ? 'No CSOs in the roster yet.'
-                            : 'No CSOs found matching the search/filter criteria.'}
-                        </p>
-                        <p className="text-xs mt-1 text-slate-400">
-                          {totalCSOsCount === 0
-                            ? 'Switch to the "CSO Excel Roster" tab to upload your Excel file or click "Add CSO".'
-                            : 'Try resetting the district or status filter.'}
-                        </p>
-                        {totalCSOsCount === 0 && (
-                          <div className="mt-3">
-                            <button
-                              type="button"
-                              onClick={() => setActiveAdminTab('excel_roster')}
-                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-900 text-white font-bold text-xs hover:bg-blue-800 cursor-pointer"
-                            >
-                              <FileSpreadsheet className="w-4 h-4" />
-                              <span>Open CSO Excel Roster Tab</span>
-                            </button>
-                          </div>
+                  return (
+                    <div
+                      key={item.cleanMob}
+                      className="p-4 space-y-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
+                      onClick={openModal}
+                    >
+                      {/* Row 1: District badge + Status badge */}
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200 text-[11px] font-bold uppercase">
+                          <MapPin className="w-3 h-3 text-blue-500 shrink-0" />
+                          {district}
+                        </span>
+                        {item.isCompleted ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 font-bold text-[11px] font-mono">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            COMPLETED
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 font-bold text-[11px] font-mono">
+                            <Clock className="w-3 h-3 text-amber-600" />
+                            PENDING
+                          </span>
                         )}
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredProgressItems.map((item) => {
-                      const district = item.cso.districtName || item.cso.district || 'Uttar Pradesh';
-                      const csoName = item.cso.csoName || item.cso.name;
-                      const centreName = item.cso.dutyCentreName || item.cso.centreName;
-                      const capacity = item.cso.centreSeatingCapacity || item.cso.candidateCapacity || 480;
+                      </div>
 
-                      return (
-                        <tr
-                          key={item.cleanMob}
-                          className={`transition-colors ${
-                            item.isCompleted && item.record
-                              ? 'hover:bg-blue-50/40 dark:hover:bg-slate-800/60 cursor-pointer'
-                              : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/50'
+                      {/* Row 2: CSO Name + Mobile */}
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-bold text-sm text-slate-900 dark:text-white truncate">{csoName}</span>
+                        <span className="font-mono text-xs text-slate-500 dark:text-slate-400 shrink-0">+91 {item.cleanMob}</span>
+                      </div>
+
+                      {/* Row 3: Centre Name + Code */}
+                      <div className="flex items-start gap-1.5">
+                        <Building2 className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                        <div className="min-w-0">
+                          <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 leading-tight block">{centreName}</span>
+                          <span className="text-[10px] font-mono text-slate-400">Code: {item.cso.centreCode || '—'} · {capacity} Candidates</span>
+                        </div>
+                      </div>
+
+                      {/* Row 4: YES/NO counts + View button */}
+                      <div className="flex items-center justify-between gap-2 pt-1">
+                        {item.isCompleted ? (
+                          <div className="flex items-center gap-2 text-[11px] font-mono">
+                            <span className="text-emerald-600 font-bold">{yesC} YES</span>
+                            <span className="text-slate-400">·</span>
+                            <span className={noC > 0 ? 'text-rose-600 font-bold' : 'text-slate-400'}>{noC} NO</span>
+                            {(item.record?.submissionData?.remarks || item.record?.formData?.csoRemarks) && (
+                              <span className="text-amber-600">💬</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-[11px] text-slate-400 italic">— Not submitted yet</span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); openModal(); }}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer shrink-0 ${
+                            item.isCompleted
+                              ? 'bg-blue-900 hover:bg-blue-800 text-white'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
                           }`}
-                          onClick={() => {
-                            setViewingResponsesCSOItem(item);
-                            if (item.record?.assessmentId) {
-                              setViewingModalAssessmentId(item.record.assessmentId);
-                            } else if (selectedAssessmentLedgerFilter !== 'all') {
-                              setViewingModalAssessmentId(selectedAssessmentLedgerFilter);
-                            } else {
-                              setViewingModalAssessmentId(assessments[0]?.id || 'assessment_mock_day');
-                            }
-                          }}
-                          title="Click row to view all question responses and remarks"
                         >
-                          {/* 1. District Name (Clearly highlighted) */}
-                          <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-white">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200 text-xs font-bold uppercase tracking-wide">
-                              <MapPin className="w-3 h-3 text-blue-600 dark:text-blue-400 shrink-0" />
-                              {district}
+                          <Eye className={`w-3.5 h-3.5 ${item.isCompleted ? 'text-amber-400' : 'text-slate-400'}`} />
+                          View
+                          {item.isCompleted && item.record?.questionResponses && (
+                            <span className="px-1.5 rounded-full bg-blue-800 text-blue-200 text-[10px] font-mono">
+                              {Object.keys(item.record.questionResponses).length}
                             </span>
-                          </td>
+                          )}
+                        </button>
+                      </div>
 
-                          {/* 2. CSO Name */}
-                          <td className="py-3.5 px-4">
-                            <div className="font-bold text-slate-900 dark:text-white">
-                              {csoName}
-                            </div>
-                            <div className="text-[10px] text-slate-400 truncate max-w-[160px]">
-                              {item.cso.designation || 'Centre Special Officer'}
-                            </div>
-                          </td>
-
-                          {/* 3. Registered Mobile Number (Unique Login ID) */}
-                          <td className="py-3.5 px-4 font-mono font-bold text-slate-800 dark:text-slate-200">
-                            <span className="text-slate-400">+91</span> {item.cleanMob}
-                          </td>
-
-                          {/* 4. Duty Centre Name (Clearly highlighted) */}
-                          <td className="py-3.5 px-4">
-                            <div className="font-bold text-slate-900 dark:text-white flex items-start gap-1.5 max-w-[240px]">
-                              <Building2 className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
-                              <span className="leading-tight">{centreName}</span>
-                            </div>
-                            <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                              Code: {item.cso.centreCode || '04201'}
-                            </div>
-                          </td>
-
-                          {/* 5. Centre Seating Capacity */}
-                          <td className="py-3.5 px-4 text-center font-mono font-bold text-slate-800 dark:text-slate-200">
-                            {capacity} Candidates
-                          </td>
-
-                          {/* 6. Survey Status */}
-                          <td className="py-3.5 px-4 text-center">
-                            {item.isCompleted ? (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setViewingResponsesCSOItem(item);
-                                  if (item.record?.assessmentId) {
-                                    setViewingModalAssessmentId(item.record.assessmentId);
-                                  } else {
-                                    setViewingModalAssessmentId(assessments[0]?.id || 'assessment_mock_day');
-                                  }
-                                }}
-                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-950/80 dark:hover:bg-emerald-900 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 font-bold text-[11px] font-mono transition-colors cursor-pointer"
-                                title="Click to view submitted survey details"
-                              >
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                <span>COMPLETED</span>
-                                <Eye className="w-3 h-3 text-emerald-600 ml-0.5" />
-                              </button>
-                            ) : (
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 font-bold text-[11px] font-mono">
-                                <Clock className="w-3.5 h-3.5 text-amber-600" />
-                                <span>PENDING</span>
-                              </span>
-                            )}
-                          </td>
-
-                          {/* 7. Responses & Remarks Column with View Button */}
-                          <td className="py-3.5 px-4 text-center">
-                            <div className="flex flex-col items-center justify-center gap-1">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setViewingResponsesCSOItem(item);
-                                  if (item.record?.assessmentId) {
-                                    setViewingModalAssessmentId(item.record.assessmentId);
-                                  } else if (selectedAssessmentLedgerFilter !== 'all') {
-                                    setViewingModalAssessmentId(selectedAssessmentLedgerFilter);
-                                  } else {
-                                    setViewingModalAssessmentId(assessments[0]?.id || 'assessment_mock_day');
-                                  }
-                                }}
-                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer ${
-                                  item.isCompleted
-                                    ? 'bg-blue-900 hover:bg-blue-800 text-white shadow-blue-900/20 hover:scale-[1.02]'
-                                    : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
-                                }`}
-                                title="Click to view all question responses, answers and remarks"
-                              >
-                                <Eye className={`w-3.5 h-3.5 ${item.isCompleted ? 'text-amber-400' : 'text-slate-400'}`} />
-                                <span>View Responses</span>
-                                {item.isCompleted && item.record?.questionResponses && (
-                                  <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-blue-800 text-blue-200 text-[10px] font-mono">
-                                    {Object.keys(item.record.questionResponses).length}
-                                  </span>
-                                )}
-                              </button>
-                              {item.isCompleted && (
-                                <div className="text-[10px] text-slate-500 font-mono flex items-center gap-1">
-                                  <span className="text-emerald-600 font-bold">
-                                    {Object.values(item.record?.questionResponses || {}).filter((r) => r === 'YES').length} YES
-                                  </span>
-                                  <span>·</span>
-                                  <span
-                                    className={
-                                      Object.values(item.record?.questionResponses || {}).filter((r) => r === 'NO').length > 0
-                                        ? 'text-rose-600 font-bold'
-                                        : 'text-slate-400'
-                                    }
-                                  >
-                                    {Object.values(item.record?.questionResponses || {}).filter((r) => r === 'NO').length} NO
-                                  </span>
-                                  {(item.record?.submissionData?.remarks || item.record?.formData?.csoRemarks) && (
-                                    <span
-                                      title={`CSO Remark: ${item.record?.submissionData?.remarks || item.record?.formData?.csoRemarks}`}
-                                      className="text-amber-600"
-                                    >
-                                      💬
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </td>
-
-                          {/* 8. Submission Date & Time */}
-                          <td className="py-3.5 px-4 font-mono text-xs">
-                            {item.isCompleted && item.submissionDateTime ? (
-                              <span className="font-semibold text-slate-800 dark:text-slate-200">
-                                {item.submissionDateTime}
-                              </span>
-                            ) : (
-                              <span className="text-slate-400 italic font-sans text-[11px]">
-                                — Not Submitted Yet
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                      {/* Row 5: Submission time (only if completed) */}
+                      {item.isCompleted && item.submissionDateTime && (
+                        <div className="text-[10px] font-mono text-slate-500 pt-0.5">
+                          Submitted: {item.submissionDateTime}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

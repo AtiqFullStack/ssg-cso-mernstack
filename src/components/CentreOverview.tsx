@@ -420,37 +420,46 @@ export const CentreOverview: React.FC<CentreOverviewProps> = ({
                       {serviceName}
                     </span>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className="text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
-                        <tr>
-                          <th className="py-2.5 px-4">Designation</th>
-                          <th className="py-2.5 px-4 text-center">Count</th>
-                          <th className="py-2.5 px-4">Contact Name</th>
-                          <th className="py-2.5 px-4">Phone</th>
-                          <th className="py-2.5 px-4 text-center">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {entries.map((entry, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                            <td className="py-2.5 px-4 font-semibold text-slate-800 dark:text-slate-200">{entry.designation}</td>
-                            <td className="py-2.5 px-4 text-center font-mono font-bold text-slate-900 dark:text-white">{entry.staffCount}</td>
-                            <td className="py-2.5 px-4 text-slate-700 dark:text-slate-300">{entry.contactName}</td>
-                            <td className="py-2.5 px-4 font-mono text-slate-600 dark:text-slate-400">{entry.contactPhone}</td>
-                            <td className="py-2.5 px-4 text-center">
-                              <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                                (entry.confirmationStatus || entry.status || '').toLowerCase().includes('confirm')
-                                  ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
-                                  : 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
-                              }`}>
-                                {entry.confirmationStatus || entry.status || '—'}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {entries.map((entry, idx) => (
+                      <div key={idx} className="p-3 space-y-2 hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                        {/* Row 1: Designation + Count badge */}
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-sm text-slate-900 dark:text-white leading-tight">
+                            {entry.designation || '—'}
+                          </span>
+                          <span className="shrink-0 px-2.5 py-1 rounded-lg bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 font-black font-mono text-xs">
+                            {entry.staffCount} Staff
+                          </span>
+                        </div>
+                        {/* Row 2: Contact + Phone */}
+                        {(entry.contactName || entry.contactPhone) && (
+                          <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400 flex-wrap">
+                            {entry.contactName && (
+                              <span className="font-medium">{entry.contactName}</span>
+                            )}
+                            {entry.contactPhone && (
+                              <a
+                                href={`tel:${entry.contactPhone}`}
+                                className="font-mono text-blue-600 dark:text-blue-400 hover:underline"
+                              >
+                                📞 {entry.contactPhone}
+                              </a>
+                            )}
+                          </div>
+                        )}
+                        {/* Row 3: Status badge */}
+                        <div>
+                          <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                            (entry.confirmationStatus || entry.status || '').toLowerCase().includes('confirm')
+                              ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                              : 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                          }`}>
+                            {entry.confirmationStatus || entry.status || '—'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ))}
