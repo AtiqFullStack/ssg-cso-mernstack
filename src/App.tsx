@@ -18,7 +18,10 @@ import {
   saveActiveCSO,
   clearActiveCSO,
   getSurveyDraft,
-  saveSurveyDraft
+  saveSurveyDraft,
+  getAdminSession,
+  saveAdminSession,
+  clearAdminSession
 } from './api/session';
 import {
   fetchAllQuestions,
@@ -51,10 +54,10 @@ export default function App() {
   const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
   const [submissionsMap, setSubmissionsMap] = useState<Record<string, SurveyRecord>>({});
 
-  // Admin
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  // Admin - initialize from session so refresh preserves login
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => getAdminSession());
   const [isAdminAuthModalOpen, setIsAdminAuthModalOpen] = useState(false);
-  const [isAdminViewOpen, setIsAdminViewOpen] = useState(false);
+  const [isAdminViewOpen, setIsAdminViewOpen] = useState(() => getAdminSession());
 
   // Initialize
   useEffect(() => {
@@ -170,11 +173,16 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    // Clear CSO session
     clearActiveCSO();
     setActiveCSO(null);
     setSurveyRecord(null);
     setSelectedAssessment(null);
     setCurrentTab('overview');
+    // Also clear admin session on full logout
+    clearAdminSession();
+    setIsAdminLoggedIn(false);
+    setIsAdminViewOpen(false);
   };
 
   const handleOpenAdmin = () => {
@@ -191,6 +199,7 @@ export default function App() {
 
   const handleAdminAuthSuccess = () => {
     setIsAdminLoggedIn(true);
+    saveAdminSession();           // ← persist to sessionStorage
     setIsAdminAuthModalOpen(false);
     setIsAdminViewOpen(true);
   };

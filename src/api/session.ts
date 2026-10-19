@@ -7,6 +7,9 @@ import { CSOProfile, SurveyRecord } from '../types/survey';
 
 const ACTIVE_CSO_KEY = 'cso_active_session';
 const SURVEY_DRAFT_KEY = 'survey_draft_temp';
+const ADMIN_SESSION_KEY = 'admin_session';
+
+// ==================== CSO SESSION ====================
 
 /**
  * Save currently logged-in CSO
@@ -42,6 +45,45 @@ export function getActiveCSO(): CSOProfile | null {
 export function clearActiveCSO(): void {
   sessionStorage.removeItem(ACTIVE_CSO_KEY);
 }
+
+// ==================== ADMIN SESSION ====================
+
+/**
+ * Save admin login state with timestamp
+ */
+export function saveAdminSession(): void {
+  try {
+    sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({
+      loggedIn: true,
+      loginAt: new Date().toISOString()
+    }));
+  } catch (e) {
+    console.error('Failed to save admin session', e);
+  }
+}
+
+/**
+ * Check if admin is logged in this session
+ */
+export function getAdminSession(): boolean {
+  try {
+    const raw = sessionStorage.getItem(ADMIN_SESSION_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    return data?.loggedIn === true;
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
+ * Clear admin session (logout)
+ */
+export function clearAdminSession(): void {
+  sessionStorage.removeItem(ADMIN_SESSION_KEY);
+}
+
+// ==================== SURVEY DRAFT ====================
 
 /**
  * Save survey draft (temporary - in memory session only)
@@ -80,4 +122,5 @@ export function clearSurveyDraft(): void {
 export function logoutCompletely(): void {
   clearActiveCSO();
   clearSurveyDraft();
+  clearAdminSession();
 }

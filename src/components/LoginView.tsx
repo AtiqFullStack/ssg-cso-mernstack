@@ -170,16 +170,16 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
             {/* Excel Uploaded CSOs (or Empty State) */}
             <div className="pt-4 border-t border-slate-800">
-              <div className="flex items-center justify-between mb-2">
+              {/* <div className="flex items-center justify-between mb-2">
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                   {language === 'hi' ? 'एक्सेल रोस्टर में उपलब्ध अधिकारी:' : 'Uploaded Excel Roster:'}
                 </span>
                 <span className="text-[10px] text-amber-400 font-mono font-bold">
                   {csoRoster.length} Registered
                 </span>
-              </div>
+              </div> */}
 
-              {csoRoster.length === 0 ? (
+              {/* {csoRoster.length === 0 ? (
                 <div className="p-4 rounded-xl bg-slate-950/60 border border-dashed border-slate-700 text-center space-y-2">
                   <p className="text-xs text-slate-400 leading-relaxed">
                     Abhi koi Centre registered nahi hai. Admin Console se Excel file upload karein ya CSO add karein.
@@ -235,7 +235,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     );
                   })}
                 </div>
-              )}
+              )} */}
             </div>
 
             {/* Admin Console Shortcut */}

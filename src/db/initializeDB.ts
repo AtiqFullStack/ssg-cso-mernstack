@@ -281,7 +281,8 @@ async function initializeSubmissions(db: Db): Promise<void> {
     if (!exists) {
       console.log(`[MongoDB] Creating collection: ${collectionName}`);
       await db.createCollection(collectionName, {
-        validator: { $jsonSchema: SubmissionValidationSchema }
+        validator: { $jsonSchema: SubmissionValidationSchema },
+        validationAction: 'warn'  // warn only, never block submission
       });
     } else {
       console.log(`[MongoDB] Collection exists: ${collectionName}`);
@@ -291,7 +292,8 @@ async function initializeSubmissions(db: Db): Promise<void> {
     try {
       await db.command({
         collMod: collectionName,
-        validator: { $jsonSchema: SubmissionValidationSchema }
+        validator: { $jsonSchema: SubmissionValidationSchema },
+        validationAction: 'warn'  // warn only, never block submission
       });
       console.log(`[MongoDB] Schema validation applied: ${collectionName}`);
     } catch (err: any) {

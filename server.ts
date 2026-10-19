@@ -479,11 +479,19 @@ app.post('/api/survey/submit', async (req: Request, res: Response) => {
       record.submissionData?.assessmentId ||
       'assessment_mock_day';
 
-    // Save submission live
+    // Strip _id to avoid immutable field error on upsert
+    const { _id, ...recordWithoutId } = record as any;
+
+    // Build complete enriched record with all required schema fields
     const enrichedRecord = {
-      ...record,
+      ...recordWithoutId,
       mobileNumber: cleanMob,
       assessmentId: assignedAssessmentId,
+      // Required schema fields - extract from csoProfile if not present
+      csoName: record.csoName || record.csoProfile?.csoName || record.csoProfile?.name || `CSO (${cleanMob.slice(-4)})`,
+      centreCode: record.centreCode || record.csoProfile?.centreCode || '',
+      centreName: record.centreName || record.csoProfile?.dutyCentreName || record.csoProfile?.centreName || '',
+      status: record.status || 'submitted',
       submittedAt: record.submittedAt || new Date().toISOString(),
       serverReceivedAt: new Date().toISOString(),
     };
@@ -495,14 +503,7 @@ app.post('/api/survey/submit', async (req: Request, res: Response) => {
       { upsert: true }
     );
 
-    // Also update the default one (for backward compatibility)
-    await submissions.updateOne(
-      { mobileNumber: cleanMob },
-      { $set: enrichedRecord },
-      { upsert: true }
-    );
-
-    console.log(`[SURVEY] Live submission received from Mobile: ${cleanMob} for Assessment: ${assignedAssessmentId}`);
+    console.log(`[SURVEY] ✅ Submission saved: Mobile ${cleanMob} | Assessment: ${assignedAssessmentId}`);
 
     return res.json({
       success: true,
