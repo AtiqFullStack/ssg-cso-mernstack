@@ -114,6 +114,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // Manpower Roster State
   const [manpowerEntries, setManpowerEntries] = useState<ManpowerEntry[]>([]);
   const [manpowerFilter, setManpowerFilter] = useState<string>('all');
+  const [manpowerServiceFilter, setManpowerServiceFilter] = useState<string>('all');
+  const [manpowerDesignationFilter, setManpowerDesignationFilter] = useState<string>('all');
+  const [manpowerConfirmFilter, setManpowerConfirmFilter] = useState<string>('all');
+  const [manpowerSearch, setManpowerSearch] = useState<string>('');
   const [manpowerUploading, setManpowerUploading] = useState(false);
   const [manpowerFeedback, setManpowerFeedback] = useState<{ success: boolean; message: string; errors?: string[] } | null>(null);
   const [manpowerReplaceMode, setManpowerReplaceMode] = useState(true);
@@ -1338,11 +1342,37 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       {/* ================= TAB 4: MANPOWER ROSTER ================= */}
       {activeAdminTab === 'manpower_roster' && (() => {
         const uniqueCentreCodes = Array.from(new Set(manpowerEntries.map((e) => e.centreCode).filter(Boolean)));
-        const filteredEntries = manpowerFilter === 'all'
-          ? manpowerEntries
-          : manpowerEntries.filter((e) => e.centreCode === manpowerFilter);
+        const uniqueServiceNames = Array.from(new Set(manpowerEntries.map((e) => e.serviceName).filter(Boolean)));
+        const uniqueDesignations = Array.from(new Set(manpowerEntries.map((e) => e.designation).filter(Boolean)));
 
-        // Group entries by centreCode
+        const filteredEntries = manpowerEntries.filter((e) => {
+          if (manpowerFilter !== 'all' && e.centreCode !== manpowerFilter) return false;
+          if (manpowerServiceFilter !== 'all' && e.serviceName !== manpowerServiceFilter) return false;
+          if (manpowerDesignationFilter !== 'all' && e.designation !== manpowerDesignationFilter) return false;
+          if (manpowerConfirmFilter !== 'all') {
+            const confirmed = (e.confirmationStatus || '').toLowerCase().includes('confirm');
+            if (manpowerConfirmFilter === 'confirmed' && !confirmed) return false;
+            if (manpowerConfirmFilter === 'pending' && confirmed) return false;
+          }
+          if (manpowerSearch.trim()) {
+            const q = manpowerSearch.toLowerCase();
+            const hit = (e.contactName || '').toLowerCase().includes(q)
+              || (e.designation || '').toLowerCase().includes(q)
+              || (e.serviceName || '').toLowerCase().includes(q)
+              || (e.centreCode || '').toLowerCase().includes(q);
+            if (!hit) return false;
+          }
+          return true;
+        });
+
+        // Designation-wise count summary
+        const designationCountMap: Record<string, number> = {};
+        filteredEntries.forEach((e) => {
+          designationCountMap[e.designation] = (designationCountMap[e.designation] || 0) + (e.staffCount || 1);
+        });
+        const totalStaff = Object.values(designationCountMap).reduce((a, b) => a + b, 0);
+
+        // Group by centreCode
         const groupedEntries: Record<string, ManpowerEntry[]> = {};
         filteredEntries.forEach((entry) => {
           if (!groupedEntries[entry.centreCode]) groupedEntries[entry.centreCode] = [];
@@ -1435,28 +1465,96 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
             {/* Filter + Table */}
             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-              <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Users className="w-4 h-4 text-blue-600" />
-                  <span>Manpower Deployment ({filteredEntries.length} entries)</span>
-                </h3>
-                {uniqueCentreCodes.length > 0 && (
-                  <div className="relative w-full sm:w-52">
-                    <Filter className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <select
-                      value={manpowerFilter}
-                      onChange={(e) => setManpowerFilter(e.target.value)}
-                      aria-label="Filter manpower by centre"
-                      className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            {/* Designation Count Summary + Total */}
+            {manpowerEntries.length > 0 && (
+              <div className="p-4 border-b border-slate-200 dark:border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <Users className="w-4 h-4 text-blue-600" />
+                    Designation-wise Count Summary
+                  </span>
+                  <span className="text-xs font-mono font-black text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950 px-3 py-1 rounded-xl border border-blue-200 dark:border-blue-800">
+                    Total: {totalStaff} Staff
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(designationCountMap).map(([designation, count]) => (
+                    <button
+                      key={designation}
+                      type="button"
+                      onClick={() => setManpowerDesignationFilter(
+                        manpowerDesignationFilter === designation ? 'all' : designation
+                      )}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                        manpowerDesignationFilter === designation
+                          ? 'bg-blue-900 text-white border-blue-900'
+                          : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-blue-400'
+                      }`}
                     >
-                      <option value="all">All Centres ({uniqueCentreCodes.length})</option>
-                      {uniqueCentreCodes.map((code) => (
-                        <option key={code} value={code}>{code}</option>
-                      ))}
-                    </select>
-                  </div>
+                      <span>{designation}</span>
+                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
+                        manpowerDesignationFilter === designation
+                          ? 'bg-white/20 text-white'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                      }`}>{count}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Filters Row */}
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row flex-wrap gap-2 items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 shrink-0">
+                <Users className="w-4 h-4 text-blue-600" />
+                <span>Manpower Deployment ({filteredEntries.length} entries)</span>
+              </h3>
+              <div className="flex flex-wrap gap-2 items-center">
+                {/* Search */}
+                <div className="relative w-full sm:w-44">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={manpowerSearch}
+                    onChange={(e) => setManpowerSearch(e.target.value)}
+                    placeholder="Search name, role..."
+                    className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                {/* Centre Code input */}
+                <div className="relative">
+                  <Building2 className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={manpowerFilter === 'all' ? '' : manpowerFilter}
+                    onChange={(e) => setManpowerFilter(e.target.value.trim() || 'all')}
+                    placeholder="Centre Code filter..."
+                    className="pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-40"
+                  />
+                </div>
+                {/* Service Name */}
+                <select value={manpowerServiceFilter} onChange={(e) => setManpowerServiceFilter(e.target.value)}
+                  className="pl-3 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                  <option value="all">All Services</option>
+                  {uniqueServiceNames.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+                {/* Confirmation Status */}
+                <select value={manpowerConfirmFilter} onChange={(e) => setManpowerConfirmFilter(e.target.value)}
+                  className="pl-3 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                  <option value="all">All Status</option>
+                  <option value="confirmed">✅ Confirmed</option>
+                  <option value="pending">⏳ Pending</option>
+                </select>
+                {/* Reset */}
+                {(manpowerFilter !== 'all' || manpowerServiceFilter !== 'all' || manpowerDesignationFilter !== 'all' || manpowerConfirmFilter !== 'all' || manpowerSearch) && (
+                  <button type="button"
+                    onClick={() => { setManpowerFilter('all'); setManpowerServiceFilter('all'); setManpowerDesignationFilter('all'); setManpowerConfirmFilter('all'); setManpowerSearch(''); }}
+                    className="px-3 py-1.5 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 rounded-xl text-xs font-bold cursor-pointer hover:bg-rose-100 transition-colors">
+                    Reset
+                  </button>
                 )}
               </div>
+            </div>
 
               {Object.keys(groupedEntries).length === 0 ? (
                 <div className="py-12 text-center text-slate-500 space-y-2">
