@@ -105,10 +105,11 @@ app.post('/api/admin/login', (req: Request, res: Response) => {
 // Health check
 app.get('/api/health', async (_req: Request, res: Response) => {
   try {
-    const rosterCount = await rosters.countDocuments();
-    const questionCount = await questions.countDocuments();
-    const submissionCount = await submissions.countDocuments();
-    
+    const [rosterCount, questionCount, submissionCount] = await Promise.all([
+      rosters.countDocuments(),
+      questions.countDocuments(),
+      submissions.countDocuments(),
+    ]);
     res.json({
       status: 'ok',
       serverTime: new Date().toISOString(),
@@ -125,24 +126,21 @@ app.get('/api/health', async (_req: Request, res: Response) => {
 // Full state sync for Admin and CSOs
 app.get('/api/state', async (_req: Request, res: Response) => {
   try {
-    const roster = await rosters.find({}).toArray();
-    const allQuestions = await questions.find({}).toArray();
-    const allAssessments = await assessments.find({}).toArray();
-    const allSubmissions = await submissions.find({}).toArray();
+    // Run all queries in parallel
+    const [roster, allQuestions, allAssessments, allSubmissions] = await Promise.all([
+      rosters.find({}, { projection: { _id: 0 } }).toArray(),
+      questions.find({}, { projection: { _id: 0 } }).toArray(),
+      assessments.find({}, { projection: { _id: 0 } }).toArray(),
+      submissions.find({}, { projection: { _id: 0 } }).toArray(),
+    ]);
 
-    // Populate questions for each assessment (join operation)
-    const assessmentsWithQuestions = allAssessments.map((assessment: any) => {
-      if (assessment.questionIds && assessment.questionIds.length > 0) {
-        const populatedQuestions = assessment.questionIds
-          .map((qId: string) => allQuestions.find((q: any) => q.id === qId))
-          .filter((q: any) => q !== undefined);
-        return {
-          ...assessment,
-          questions: populatedQuestions
-        };
-      }
-      return { ...assessment, questions: [] };
-    });
+    // Build question lookup map once
+    const questionMap = new Map(allQuestions.map((q: any) => [q.id, q]));
+
+    const assessmentsWithQuestions = allAssessments.map((assessment: any) => ({
+      ...assessment,
+      questions: (assessment.questionIds || []).map((qId: string) => questionMap.get(qId)).filter(Boolean),
+    }));
 
     res.json({
       success: true,
@@ -151,7 +149,7 @@ app.get('/api/state', async (_req: Request, res: Response) => {
       assessments: assessmentsWithQuestions,
       submissions: Object.fromEntries(
         allSubmissions.map((sub) => [
-          sub.mobileNumber || `${sub.mobileNumber}_${sub.assessmentId}`,
+          sub.assessmentId ? `${sub.mobileNumber}_${sub.assessmentId}` : sub.mobileNumber,
           sub
         ])
       ),
@@ -170,12 +168,15 @@ app.get('/api/cso/lookup/:mobile', async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, error: 'Invalid 10-digit mobile number' });
     }
 
-    const cso = await rosters.findOne({
-      $or: [
-        { registeredMobile: { $regex: reqMob, $options: 'i' } },
-        { mobile: { $regex: reqMob, $options: 'i' } }
-      ]
-    });
+    // Run all 3 queries in parallel — exact match (uses index), no regex
+    const [cso, submission, activeQuestions] = await Promise.all([
+      rosters.findOne(
+        { $or: [{ registeredMobile: reqMob }, { mobile: reqMob }] },
+        { projection: { _id: 0 } }
+      ),
+      submissions.findOne({ mobileNumber: reqMob }, { projection: { _id: 0 } }),
+      questions.find({ isActive: true }, { projection: { _id: 0 } }).toArray(),
+    ]);
 
     if (!cso) {
       return res.status(404).json({
@@ -184,18 +185,7 @@ app.get('/api/cso/lookup/:mobile', async (req: Request, res: Response) => {
       });
     }
 
-    const submission = await submissions.findOne({
-      mobileNumber: reqMob
-    });
-
-    const activeQuestions = await questions.find({ isActive: true }).toArray();
-
-    return res.json({
-      success: true,
-      cso,
-      submission: submission || null,
-      activeQuestions,
-    });
+    return res.json({ success: true, cso, submission: submission || null, activeQuestions });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -211,33 +201,22 @@ app.post('/api/roster', async (req: Request, res: Response) => {
 
     let upsertedCount = 0;
 
-    if (mode === 'append') {
-      // Upsert each CSO (update if mobile exists, insert if not)
-      for (const c of roster) {
-        const mob = cleanMobile(c.registeredMobile || c.mobile);
-        if (!mob) continue;
-        const { _id, ...cDoc } = c as any;
-        await rosters.updateOne(
-          { $or: [{ registeredMobile: mob }, { mobile: mob }] },
-          { $set: cDoc },
-          { upsert: true }
-        );
-        upsertedCount++;
-      }
-    } else {
-      // Replace mode: delete all then upsert new ones
-      await rosters.deleteMany({});
-      for (const c of roster) {
-        const mob = cleanMobile(c.registeredMobile || c.mobile);
-        if (!mob) continue;
-        const { _id, ...cDoc } = c as any;
-        await rosters.updateOne(
-          { $or: [{ registeredMobile: mob }, { mobile: mob }] },
-          { $set: cDoc },
-          { upsert: true }
-        );
-        upsertedCount++;
-      }
+    const validEntries = roster
+      .map((c: any) => ({ mob: cleanMobile(c.registeredMobile || c.mobile), doc: (({ _id, ...rest }) => rest)(c) }))
+      .filter(({ mob }) => mob.length === 10);
+
+    if (mode !== 'append') await rosters.deleteMany({});
+
+    if (validEntries.length > 0) {
+      const bulkOps = validEntries.map(({ mob, doc }) => ({
+        updateOne: {
+          filter: { $or: [{ registeredMobile: mob }, { mobile: mob }] },
+          update: { $set: doc },
+          upsert: true,
+        },
+      }));
+      const result = await rosters.bulkWrite(bulkOps, { ordered: false });
+      upsertedCount = result.upsertedCount + result.modifiedCount;
     }
 
     const count = await rosters.countDocuments();
@@ -315,13 +294,11 @@ app.post('/api/roster/clear', async (_req: Request, res: Response) => {
 // Survey Questions API
 app.get('/api/questions', async (_req: Request, res: Response) => {
   try {
-    const allQuestions = await questions.find({}).toArray();
-    const activeQuestions = await questions.find({ isActive: true }).toArray();
-    
+    const allQuestions = await questions.find({}, { projection: { _id: 0 } }).toArray();
     res.json({
       success: true,
       questions: allQuestions,
-      activeQuestions,
+      activeQuestions: allQuestions.filter((q: any) => q.isActive),
     });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -542,16 +519,15 @@ app.post('/api/survey/submit', async (req: Request, res: Response) => {
   }
 });
 
-// Submissions list
+// Submissions list — lightweight, only submissions (used by admin polling)
 app.get('/api/surveys', async (_req: Request, res: Response) => {
   try {
-    const allSubmissions = await submissions.find({}).toArray();
-    
+    const allSubmissions = await submissions.find({}, { projection: { _id: 0 } }).toArray();
     return res.json({
       success: true,
       submissions: Object.fromEntries(
         allSubmissions.map((sub) => [
-          sub.mobileNumber || `${sub.mobileNumber}_${sub.assessmentId}`,
+          sub.assessmentId ? `${sub.mobileNumber}_${sub.assessmentId}` : sub.mobileNumber,
           sub
         ])
       ),
@@ -601,39 +577,42 @@ app.get('/api/manpower/:centreCode', async (req: Request, res: Response) => {
   }
 });
 
-// POST upload manpower entries (replace or append)
+// POST upload manpower entries (smart upsert via bulkWrite)
 app.post('/api/manpower', async (req: Request, res: Response) => {
   try {
-    const { entries, mode } = req.body;
-    if (!Array.isArray(entries)) {
-      return res.status(400).json({ success: false, error: 'entries must be an array' });
+    const { entries } = req.body;
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return res.status(400).json({ success: false, error: 'entries must be a non-empty array' });
     }
 
-    if (mode === 'replace') {
-      // Delete all docs for each unique centreCode in entries, then insertMany
-      const centreCodes = [...new Set(entries.map((e: any) => e.centreCode).filter(Boolean))];
-      for (const code of centreCodes) {
-        await manpower.deleteMany({ centreCode: code });
-      }
-      if (entries.length > 0) {
-        await manpower.insertMany(entries.map((e: any) => {
-          const { _id, ...rest } = e as any;
-          return rest;
-        }));
-      }
-    } else {
-      // Append: upsert each entry matching centreCode + serviceName + designation
-      for (const entry of entries) {
-        const { _id, ...doc } = entry as any;
-        await manpower.updateOne(
-          { centreCode: doc.centreCode, serviceName: doc.serviceName, designation: doc.designation },
-          { $set: doc },
-          { upsert: true }
-        );
-      }
-    }
+    const bulkOps = entries.map((entry: any) => {
+      const { _id, ...doc } = entry;
+      const phone = (doc.contactPhone || '').replace(/\D/g, '').slice(-10);
 
-    return res.json({ success: true, count: entries.length });
+      // Unique key: centreCode + phone (if exists), else centreCode + designation + contactName
+      const filter = phone
+        ? { centreCode: doc.centreCode, contactPhone: phone }
+        : { centreCode: doc.centreCode, designation: doc.designation, contactName: doc.contactName };
+
+      return {
+        updateOne: {
+          filter,
+          update: { $set: doc },
+          upsert: true
+        }
+      };
+    });
+
+    const result = await manpower.bulkWrite(bulkOps, { ordered: false });
+    const total = await manpower.countDocuments();
+
+    return res.json({
+      success: true,
+      count: entries.length,
+      insertedCount: result.upsertedCount,
+      updatedCount: result.modifiedCount,
+      total
+    });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
   }

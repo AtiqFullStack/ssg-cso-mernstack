@@ -49,7 +49,7 @@ import {
 } from '../../utils/storage';
 import { CSOLiveLinkCard } from './CSOLiveLinkCard';
 import { AssessmentManager } from './AssessmentManager';
-import { fetchServerState, clearAllServerData } from '../../utils/apiSync';
+import { clearAllServerData } from '../../utils/apiSync';
 import { fetchAllManpower, uploadManpower } from '../../api/client';
 
 interface AdminPanelProps {
@@ -120,7 +120,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [manpowerSearch, setManpowerSearch] = useState<string>('');
   const [manpowerUploading, setManpowerUploading] = useState(false);
   const [manpowerFeedback, setManpowerFeedback] = useState<{ success: boolean; message: string; errors?: string[] } | null>(null);
-  const [manpowerReplaceMode, setManpowerReplaceMode] = useState(true);
   const manpowerFileRef = useRef<HTMLInputElement>(null);
 
   // CSO Add & Edit Modals State
@@ -154,35 +153,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [newHelperHi, setNewHelperHi] = useState('');
   const [newIsActive, setNewIsActive] = useState(true);
 
-  // Load submissions and synchronize automatically in real-time from server and local storage
   const refreshSubmissions = () => {
-    fetchServerState()
-      .then((state) => {
-        if (state?.submissions) {
-          setSubmissionsMap(state.submissions);
-        } else {
-          const subs = getAllSurveySubmissions();
-          setSubmissionsMap(subs);
-        }
+    fetch('/api/surveys', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.submissions) setSubmissionsMap(data.submissions);
       })
       .catch(() => {
-        const subs = getAllSurveySubmissions();
-        setSubmissionsMap(subs);
+        setSubmissionsMap(getAllSurveySubmissions());
       });
   };
 
   useEffect(() => {
     refreshSubmissions();
 
-    const handleSurveyUpdate = () => {
-      refreshSubmissions();
-    };
-
+    const handleSurveyUpdate = () => refreshSubmissions();
     window.addEventListener(SURVEY_UPDATED_EVENT, handleSurveyUpdate);
     window.addEventListener('storage', handleSurveyUpdate);
 
-    // Live continuous sync every 2.5 seconds for real-time progress updates across devices
-    const interval = setInterval(refreshSubmissions, 2500);
+    // Poll every 15s — only when admin panel is open
+    const interval = setInterval(refreshSubmissions, 15000);
 
     return () => {
       window.removeEventListener(SURVEY_UPDATED_EVENT, handleSurveyUpdate);
@@ -221,8 +211,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       return;
     }
     try {
-      await uploadManpower(result.entries, manpowerReplaceMode ? 'replace' : 'append');
-      setManpowerFeedback({ success: true, message: `${result.count} manpower entries uploaded successfully.`, errors: result.errors });
+      const res = await uploadManpower(result.entries, 'append');
+      const msg = `${result.count} entries processed — ${(res as any).insertedCount ?? 0} new added, ${(res as any).updatedCount ?? 0} updated. DB total: ${(res as any).total ?? '?'}`;
+      setManpowerFeedback({ success: true, message: msg, errors: result.errors });
       refreshManpower();
     } catch (err: any) {
       setManpowerFeedback({ success: false, message: `Upload failed: ${err.message}` });
@@ -561,6 +552,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   return (
     <div className="space-y-6 pb-20 max-w-6xl mx-auto">
+      {/* ================= MANPOWER UPLOAD LOADING OVERLAY ================= */}
+      {manpowerUploading && (
+        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center gap-5">
+          <div className="w-16 h-16 rounded-full border-4 border-blue-400 border-t-transparent animate-spin" />
+          <div className="text-center space-y-1">
+            <p className="text-white font-black text-lg">Uploading Manpower Data...</p>
+            <p className="text-slate-300 text-sm">Kripya wait karein, data save ho raha hai</p>
+          </div>
+        </div>
+      )}
       {/* ================= ADMIN TOP BANNER ================= */}
       <div className="bg-gradient-to-r from-blue-950 via-slate-900 to-indigo-950 text-white rounded-2xl p-5 sm:p-6 border border-blue-900 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -1403,20 +1404,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <span>Download Template</span>
                   </button>
                 </div>
-              </div>
-
-              {/* Replace / Append toggle */}
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="manpowerReplaceMode"
-                  checked={manpowerReplaceMode}
-                  onChange={(e) => setManpowerReplaceMode(e.target.checked)}
-                  className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
-                />
-                <label htmlFor="manpowerReplaceMode" className="text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
-                  Replace existing entries for uploaded centre codes (recommended)
-                </label>
               </div>
 
               {/* Dropzone */}

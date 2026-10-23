@@ -495,7 +495,7 @@ export async function fetchAllManpower(): Promise<ManpowerEntry[]> {
 export async function uploadManpower(
   entries: ManpowerEntry[],
   mode: 'replace' | 'append'
-): Promise<{ success: boolean; count: number }> {
+): Promise<{ success: boolean; count: number; insertedCount?: number; updatedCount?: number; total?: number }> {
   try {
     const res = await fetch(`${API_BASE}/manpower`, {
       method: 'POST',

@@ -25,18 +25,11 @@ import {
   clearAdminSession
 } from './api/session';
 import {
-  fetchAllQuestions,
-  fetchAllAssessments,
-  fetchAllRosters,
   updateAllAssessments,
   updateAllQuestions,
   updateRoster,
   submitSurvey,
-  fetchAllSubmissions,
-  questionsChanged,
-  assessmentsChanged,
-  rostersChanged,
-  submissionsChanged
+  fetchAllSubmissions
 } from './api/client';
 
 export default function App() {
@@ -88,42 +81,21 @@ export default function App() {
     loadDataFromAPI();
   }, []);
 
-  // Polling every 3 seconds
+  // Single polling — one /api/state call every 30s covers everything
   useEffect(() => {
-    const interval = setInterval(() => {
-      loadDataFromAPI();
-    }, 1113);
-
+    const interval = setInterval(loadDataFromAPI, 30000);
     return () => clearInterval(interval);
   }, []);
 
   async function loadDataFromAPI() {
     try {
-      // Smart polling: only update state if data actually changed
-      
-      // Check questions
-      if (await questionsChanged()) {
-        const questions = await fetchAllQuestions();
-        setSurveyQuestions(questions);
-      }
-
-      // Check assessments
-      if (await assessmentsChanged()) {
-        const allAssessments = await fetchAllAssessments();
-        setAssessments(allAssessments);
-      }
-
-      // Check rosters
-      if (await rostersChanged()) {
-        const roster = await fetchAllRosters();
-        setCsoRoster(roster);
-      }
-
-      // Check submissions
-      if (await submissionsChanged()) {
-        const submissions = await fetchAllSubmissions();
-        setSubmissionsMap(submissions);
-      }
+      const res = await fetch('/api/state', { cache: 'no-store' });
+      if (!res.ok) throw new Error('state fetch failed');
+      const data = await res.json();
+      if (data.questions)   setSurveyQuestions(data.questions);
+      if (data.assessments) setAssessments(data.assessments);
+      if (data.roster)      setCsoRoster(data.roster);
+      if (data.submissions) setSubmissionsMap(data.submissions);
     } catch (err) {
       console.error('[App] Failed to load data from API:', err);
     } finally {
