@@ -75,8 +75,8 @@ export const CentreOverview: React.FC<CentreOverviewProps> = ({
   const centreSeatingCapacity = authoritativeProfile.centreSeatingCapacity || authoritativeProfile.candidateCapacity || 480;
   const address = authoritativeProfile.address || `${dutyCentreName}, District ${districtName}`;
 
-  // Active assessments created by Admin
-  const activeAssessments = assessments.filter((a) => a.isActive);
+  // Show active, non-custom assessments to the CSO.
+  const activeAssessments = assessments.filter((a) => a.isActive && a.type !== 'custom');
 
   // Helper for type badges
   const getTypeBadge = (type: string) => {
@@ -237,7 +237,7 @@ export const CentreOverview: React.FC<CentreOverviewProps> = ({
       <div className="space-y-4 pt-2">
         <div className="space-y-1">
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-            Select Assessment Day Questionnaire
+            Select Assessment Day Questionnairea
           </h2>
           <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
             Neeche diye gaye 2 options me se Mock Day ya Exam Day select karein. Submit karte hi report Central Dashboard par live sync ho jayegi.
